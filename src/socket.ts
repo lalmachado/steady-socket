@@ -35,6 +35,9 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let pingTimer: ReturnType<typeof setInterval> | undefined;
   let pongTimer: ReturnType<typeof setTimeout> | undefined;
+  let paused = false;
+  let pingNow: (() => void) | undefined;
+  let detachLifecycle: (() => void) | undefined;
   let failedAttempts = 0;
   // Bumped whenever the current attempt is abandoned, so late async results can tell they are stale.
   let generation = 0;
@@ -121,14 +124,15 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
   function startHeartbeat(socket: WebSocketLike, mine: number): void {
     const heartbeat = options.heartbeat;
     if (!heartbeat) return;
-    pingTimer = setInterval(() => {
+    pingNow = () => {
       // A ping is still waiting for its pong: do not stack another one on top.
       if (pongTimer !== undefined) return;
       socket.send(serialize(heartbeat.ping()));
       pongTimer = setTimeout(() => {
         if (mine === generation) abandon(socket, 4000, 'heartbeat timeout');
       }, heartbeat.timeout);
-    }, heartbeat.interval);
+    };
+    pingTimer = setInterval(pingNow, heartbeat.interval);
   }
 
   function stopHeartbeat(): void {
@@ -136,6 +140,7 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
     clearTimeout(pongTimer);
     pingTimer = undefined;
     pongTimer = undefined;
+    pingNow = undefined;
   }
 
   /**
@@ -160,9 +165,11 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
       stop('max-attempts');
       return;
     }
+    setState('reconnecting');
+    // Paused (offline): wait here without using up an attempt. wake() connects.
+    if (paused) return;
     const delay = computeDelay(failedAttempts, reconnect);
     failedAttempts++;
-    setState('reconnecting');
     retryTimer = setTimeout(() => {
       retryTimer = undefined;
       void attempt();
@@ -176,10 +183,29 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
     retryTimer = undefined;
     queue.length = 0;
     topics.clear();
+    detachLifecycle?.();
+    detachLifecycle = undefined;
     ws?.close(code, text);
     ws = undefined;
     closeReason = reason;
     setState('closed');
+  }
+
+  function pause(): void {
+    paused = true;
+    clearTimeout(retryTimer);
+    retryTimer = undefined;
+  }
+
+  function wake(): void {
+    paused = false;
+    if (state === 'reconnecting') {
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+      void attempt();
+    } else if (state === 'open') {
+      pingNow?.();
+    }
   }
 
   return {
@@ -190,7 +216,9 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
       return closeReason;
     },
     connect() {
-      if (state === 'idle') void attempt();
+      if (state !== 'idle') return;
+      detachLifecycle = options.lifecycle?.({ pause, wake });
+      void attempt();
     },
     close(code, reason) {
       if (state !== 'closed') stop('closed-by-user', code, reason);
