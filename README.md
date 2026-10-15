@@ -14,15 +14,14 @@ The core is plain TypeScript with no dependencies. A thin React layer sits on to
 
 ## Why
 
-A WebSocket that works in a demo and one that works in production are different things. In production:
+A WebSocket that works in a demo and one that works in production are different things. Reconnecting clients such as `partysocket` and `reconnecting-websocket` already cover backoff and a fresh URL on each connect, and `react-use-websocket` has a heartbeat. What none of them does is the part that sits on top of the connection:
 
-- **Connections die without telling you.** A NAT timeout, a proxy, or a phone switching from Wi-Fi to 4G can leave a socket that looks open but delivers nothing. No `close` event ever fires. Only a heartbeat catches it.
-- **Everyone reconnects at once.** When the server restarts, every client retries at the same moment. Exponential backoff with jitter spreads them out.
-- **Tokens expire between connections.** The token you connected with an hour ago is not the one you should reconnect with.
-- **The server forgets your subscriptions.** A new connection starts empty. Whatever the client was listening to has to be sent again, after auth and in the right order.
-- **Mobile apps go to sleep.** In the background, timers stop being reliable and the OS may drop the connection. When the app comes back, the user expects live data immediately, not after the next backoff step.
+- **The server forgets your subscriptions.** A new connection starts empty. Whatever the client was listening to has to be sent again, after auth and in the right order. `steady-socket` reference-counts subscriptions per topic and replays them after your `onOpen` auth step on every reconnect.
+- **Mobile apps go to sleep.** In the background, timers stop being reliable and the OS may drop the connection. When the app comes back, the user expects live data immediately, not after the next backoff step. `steady-socket` takes React Native's `AppState` (passed in by you) and skips the backoff wait on foreground.
+- **Connections die without telling you.** A NAT timeout, a proxy, or a phone switching from Wi-Fi to 4G can leave a socket that looks open but delivers nothing. No `close` event ever fires. Only a heartbeat catches it, and `partysocket` has none.
+- **Bad credentials should stop the loop.** A close code that means "your token is wrong" moves the socket to `closed` with a reason instead of retrying forever.
 
-`steady-socket` handles these in one place, with a small, explicit state machine you can observe and test.
+All of it sits behind a small, explicit state machine you can observe and test, with no dependencies in the core.
 
 ## Install
 
@@ -37,9 +36,7 @@ React and React Native support are included as subpath exports. `react` is an op
 ```ts
 import { createSocket } from 'steady-socket';
 
-type Incoming =
-  | { type: 'pong' }
-  | { type: 'event'; topic: string; payload: unknown };
+type Incoming = { type: 'pong' } | { type: 'event'; topic: string; payload: unknown };
 
 type Outgoing =
   | { type: 'ping' }
@@ -52,7 +49,7 @@ const socket = createSocket<Incoming, Outgoing>({
 
   heartbeat: {
     interval: 15_000, // send a ping every 15 s
-    timeout: 5_000,   // no pong within 5 s → treat the socket as dead
+    timeout: 5_000, // no pong within 5 s → treat the socket as dead
     ping: () => ({ type: 'ping' }),
     isPong: (msg) => msg.type === 'pong',
   },
@@ -159,18 +156,18 @@ idle ──connect()──▶ connecting ──open──▶ open
 
 ## Options
 
-| Option | Default | What it does |
-| --- | --- | --- |
-| `url` | — | A string, or a sync or async function called on every connect. |
-| `protocols` | — | Passed through to `WebSocket`. |
-| `heartbeat` | off | `interval`, `timeout`, `ping()`, `isPong(msg)`. |
-| `reconnect` | on | `minDelay`, `maxDelay`, `factor`, `jitter` (`'full'` or `'none'`), `maxAttempts`. |
-| `subscriptions` | off | `subscribe(topic)`, `unsubscribe(topic)`, `topicOf(msg)`. |
-| `onOpen` | — | Async hook before subscriptions are replayed. |
-| `isAuthFailure` | — | Close events that should stop reconnecting. |
-| `lifecycle` | — | `browserLifecycle()` or `appStateLifecycle(AppState)`. |
-| `serialize` / `parse` | JSON | Message encoding. |
-| `WebSocket` | global | The constructor to use. Pass `ws` in Node, or a fake in tests. |
+| Option                | Default | What it does                                                                      |
+| --------------------- | ------- | --------------------------------------------------------------------------------- |
+| `url`                 | —       | A string, or a sync or async function called on every connect.                    |
+| `protocols`           | —       | Passed through to `WebSocket`.                                                    |
+| `heartbeat`           | off     | `interval`, `timeout`, `ping()`, `isPong(msg)`.                                   |
+| `reconnect`           | on      | `minDelay`, `maxDelay`, `factor`, `jitter` (`'full'` or `'none'`), `maxAttempts`. |
+| `subscriptions`       | off     | `subscribe(topic)`, `unsubscribe(topic)`, `topicOf(msg)`.                         |
+| `onOpen`              | —       | Async hook before subscriptions are replayed.                                     |
+| `isAuthFailure`       | —       | Close events that should stop reconnecting.                                       |
+| `lifecycle`           | —       | `browserLifecycle()` or `appStateLifecycle(AppState)`.                            |
+| `serialize` / `parse` | JSON    | Message encoding.                                                                 |
+| `WebSocket`           | global  | The constructor to use. Pass `ws` in Node, or a fake in tests.                    |
 
 ## Testing your app
 
