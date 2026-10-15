@@ -64,7 +64,7 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 
 - [ ] Changesets set up; release workflow on `main` opens a "Version packages" PR and publishes on merge
 - [ ] npm trusted publishing (OIDC) with provenance, so there's no npm token stored in GitHub
-- [ ] README examples checked by hand against the built package
+- [x] README examples checked by hand against the built package
 - [ ] Publish `0.1.0`, tag it, write a short GitHub release note
 - [ ] Pin the repo on your GitHub profile
 
