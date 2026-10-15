@@ -9,6 +9,8 @@
 The core is plain TypeScript with no dependencies. A thin React layer sits on top and runs unchanged in Next.js and Expo.
 
 > **Status:** v0.1 is in progress. The API below is the target for v0.1 and may still change. See [ROADMAP.md](./ROADMAP.md).
+>
+> **Built so far:** the connection state machine, async `url`, reconnect with backoff and jitter, `send()` and `onMessage()`. Heartbeat, `onOpen`, `isAuthFailure`, subscriptions, the React layer and lifecycle adapters are not built yet, so the examples below that use them will not run until Sessions 3 and 4 land.
 
 ---
 
@@ -152,22 +154,25 @@ idle ──connect()──▶ connecting ──open──▶ open
               close() from any state  ─────┴────▶ closed
 ```
 
+`close()` is final: it works from any state, cancels pending timers, and the socket never reconnects. `connect()` only does something from `idle`. When a socket ends up `closed`, `socket.closeReason` says why (`'closed-by-user'`, `'connection-lost'` when reconnecting is off, or `'max-attempts'`).
+
 `socket.state` always holds the current state, and `onState` notifies every transition. A connection that fails auth (`isAuthFailure`) goes to `closed` with a reason, rather than retrying forever.
 
 ## Options
 
-| Option                | Default | What it does                                                                      |
-| --------------------- | ------- | --------------------------------------------------------------------------------- |
-| `url`                 | —       | A string, or a sync or async function called on every connect.                    |
-| `protocols`           | —       | Passed through to `WebSocket`.                                                    |
-| `heartbeat`           | off     | `interval`, `timeout`, `ping()`, `isPong(msg)`.                                   |
-| `reconnect`           | on      | `minDelay`, `maxDelay`, `factor`, `jitter` (`'full'` or `'none'`), `maxAttempts`. |
-| `subscriptions`       | off     | `subscribe(topic)`, `unsubscribe(topic)`, `topicOf(msg)`.                         |
-| `onOpen`              | —       | Async hook before subscriptions are replayed.                                     |
-| `isAuthFailure`       | —       | Close events that should stop reconnecting.                                       |
-| `lifecycle`           | —       | `browserLifecycle()` or `appStateLifecycle(AppState)`.                            |
-| `serialize` / `parse` | JSON    | Message encoding.                                                                 |
-| `WebSocket`           | global  | The constructor to use. Pass `ws` in Node, or a fake in tests.                    |
+| Option                | Default | What it does                                                                                                                                                                                     |
+| --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `url`                 | —       | A string, or a sync or async function called on every connect.                                                                                                                                   |
+| `protocols`           | —       | Passed through to `WebSocket`.                                                                                                                                                                   |
+| `heartbeat`           | off     | `interval`, `timeout`, `ping()`, `isPong(msg)`.                                                                                                                                                  |
+| `reconnect`           | on      | `minDelay` (500), `maxDelay` (30 000), `factor` (2), `jitter` (`'full'` or `'none'`, default `'full'`), `maxAttempts` (default: no limit), `random` (for tests). `false` turns reconnecting off. |
+| `queueWhileOffline`   | off     | Max number of messages `send()` buffers while the socket is not open. Without it, `send()` throws when not open.                                                                                 |
+| `subscriptions`       | off     | `subscribe(topic)`, `unsubscribe(topic)`, `topicOf(msg)`.                                                                                                                                        |
+| `onOpen`              | —       | Async hook before subscriptions are replayed.                                                                                                                                                    |
+| `isAuthFailure`       | —       | Close events that should stop reconnecting.                                                                                                                                                      |
+| `lifecycle`           | —       | `browserLifecycle()` or `appStateLifecycle(AppState)`.                                                                                                                                           |
+| `serialize` / `parse` | JSON    | Message encoding.                                                                                                                                                                                |
+| `WebSocket`           | global  | The constructor to use. Pass `ws` in Node, or a fake in tests.                                                                                                                                   |
 
 ## Testing your app
 

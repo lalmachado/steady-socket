@@ -37,12 +37,12 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 
 ## Session 2 — Core: connection and reconnect
 
-- [ ] `FakeWebSocket` test helper: can open, close with a code, deliver messages, and go silent
-- [ ] State machine: `idle → connecting → open → reconnecting → closed`, with `socket.state` and `onState`
-- [ ] Async `url` provider, called on every connect
-- [ ] Backoff: exponential, capped, full jitter, `maxAttempts`. Tested with fake timers and an injected random function
-- [ ] `close()` from any state cancels pending timers and never reconnects
-- [ ] `send()` while not open: throw by default, or queue up to a limit if `queueWhileOffline` is set (decide which and document it)
+- [x] `FakeWebSocket` test helper: can open, close with a code, deliver messages, and go silent
+- [x] State machine: `idle → connecting → open → reconnecting → closed`, with `socket.state` and `onState`
+- [x] Async `url` provider, called on every connect
+- [x] Backoff: exponential, capped, full jitter, `maxAttempts`. Tested with fake timers and an injected random function
+- [x] `close()` from any state cancels pending timers and never reconnects
+- [x] `send()` while not open: throw by default, or queue up to a limit if `queueWhileOffline` is set (decide which and document it)
 
 ## Session 3 — Core: heartbeat, auth, subscriptions
 
