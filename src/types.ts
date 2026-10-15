@@ -56,6 +56,24 @@ export interface SubscriptionOptions<Incoming, Outgoing> {
   topicOf: (message: Incoming) => string | undefined;
 }
 
+/** What a lifecycle adapter can ask the socket to do. */
+export interface LifecycleControls {
+  /** Stop scheduling reconnect attempts, for example because the device is offline. */
+  pause: () => void;
+  /**
+   * Un-pause, and get connected now: skip any backoff wait and connect straight away, or, if the
+   * socket is open, ping straight away to check it is still alive (this needs `heartbeat`).
+   */
+  wake: () => void;
+}
+
+/**
+ * Connects the socket to its environment (browser events, React Native's `AppState`). It is called
+ * once, on `connect()`, and returns a function that removes whatever it attached; that is called on
+ * `close()`.
+ */
+export type Lifecycle = (controls: LifecycleControls) => () => void;
+
 export interface SocketOptions<Incoming, Outgoing> {
   /** A string, or a sync or async function. A function is called again on every connect attempt. */
   url: string | (() => string | Promise<string>);
@@ -82,6 +100,8 @@ export interface SocketOptions<Incoming, Outgoing> {
   onOpen?: (send: (message: Outgoing) => void) => void | Promise<void>;
   /** Close events for which `true` is returned stop reconnecting: the socket goes to `closed`. */
   isAuthFailure?: (event: CloseInfo) => boolean;
+  /** `browserLifecycle()` on the web, `appStateLifecycle(AppState)` in React Native. */
+  lifecycle?: Lifecycle;
   serialize?: (message: Outgoing) => string;
   parse?: (data: unknown) => Incoming;
   /** The `WebSocket` constructor to use. Defaults to the global one. */

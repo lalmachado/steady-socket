@@ -77,12 +77,14 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check:package": "publint && attw --pack . --profile node16"
+    "check:package": "publint && attw --pack . --profile node16",
+    "size": "size-limit"
   },
   "packageManager": "pnpm@10.28.0",
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@eslint/js": "^10.0.1",
+    "@size-limit/preset-small-lib": "^14.2.0",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
@@ -94,6 +96,7 @@
     "publint": "^0.3.25",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "size-limit": "^14.2.0",
     "tsup": "^9.0.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.2",
@@ -103,5 +106,28 @@
     "ignoredBuiltDependencies": [
       "esbuild"
     ]
-  }
+  },
+  "size-limit": [
+    {
+      "name": "core (steady-socket)",
+      "path": "dist/index.js",
+      "limit": "3 kB",
+      "gzip": true
+    },
+    {
+      "name": "react (steady-socket/react)",
+      "path": "dist/react.js",
+      "limit": "1 kB",
+      "ignore": [
+        "react"
+      ],
+      "gzip": true
+    },
+    {
+      "name": "react-native (steady-socket/react-native)",
+      "path": "dist/react-native.js",
+      "limit": "500 B",
+      "gzip": true
+    }
+  ]
 }

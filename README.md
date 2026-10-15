@@ -10,7 +10,7 @@ The core is plain TypeScript with no dependencies. A thin React layer sits on to
 
 > **Status:** v0.1 is in progress. The API below is the target for v0.1 and may still change. See [ROADMAP.md](./ROADMAP.md).
 >
-> **Built so far:** the connection state machine, async `url`, reconnect with backoff and jitter, heartbeat with dead-socket detection, `onOpen`, `isAuthFailure`, subscriptions, `send()` and `onMessage()`, and the React layer (`SocketProvider`, `useSocket`, `useSocketState`, `useSubscription`). The lifecycle adapters (`browserLifecycle`, `appStateLifecycle`) are not built yet, so the `lifecycle` option and the React Native example below will not work until the rest of Session 4 lands.
+> **Built so far:** everything described below: the connection state machine, async `url`, reconnect with backoff and jitter, heartbeat with dead-socket detection, `onOpen`, `isAuthFailure`, subscriptions, `send()` and `onMessage()`, the React layer, and the browser and React Native lifecycle adapters. What is left before 0.1.0 is the release itself (see the roadmap), so nothing is published to npm yet.
 
 ---
 
@@ -142,9 +142,11 @@ function BedStatus({ id }: { id: string }) {
 - **Types:** the provider erases the socket's message types, so `useSocket<Incoming, Outgoing>()` and `useSubscription<Incoming>()` take them as type arguments. Like `fetch<T>()`, that is your claim and is not checked at runtime.
 - Needs React 18 or newer (it uses `useSyncExternalStore`).
 
-## React Native
+## React Native and the browser
 
-Pass `AppState` in. The library listens for the app coming back to the foreground: it checks the connection at once and skips any pending backoff delay. No hard dependency on `react-native`.
+The `lifecycle` option connects the socket to its environment. An adapter is attached when you call `connect()` and removed on `close()`.
+
+**React Native.** Pass `AppState` in; the package never imports `react-native`. When the app comes back to `active`, the socket does not wait for its next scheduled attempt: if it is reconnecting, it connects straight away; if it looks open, it pings straight away (needs `heartbeat`), so a connection the OS dropped in the background is replaced in seconds.
 
 ```ts
 import { AppState } from 'react-native';
@@ -152,11 +154,24 @@ import { appStateLifecycle } from 'steady-socket/react-native';
 
 const socket = createSocket({
   // …
+  heartbeat: {/* … */},
   lifecycle: appStateLifecycle(AppState),
 });
 ```
 
-On the web, `browserLifecycle()` does the same with `online`/`offline` and `visibilitychange` events.
+**Web.** `browserLifecycle()` listens to the browser:
+
+- `offline` pauses reconnecting. The socket waits in `reconnecting` and does not use up attempts.
+- `online` ends the pause and connects straight away (or pings, if the socket is open).
+- A tab becoming visible again does the same: skip any backoff wait, or check that an open connection is still alive.
+
+```ts
+import { browserLifecycle, createSocket } from 'steady-socket';
+
+const socket = createSocket({ /* … */ lifecycle: browserLifecycle() });
+```
+
+Pinging on wake only works if you configured `heartbeat`; without it, an open socket is left alone because there is nothing to ask it.
 
 ## Connection states
 
@@ -188,7 +203,7 @@ With `heartbeat` set, a pong that does not arrive within `timeout` closes the so
 | `subscriptions`       | off     | `subscribe(topic)`, `unsubscribe(topic)`, `topicOf(msg)`.                                                                                                                                        |
 | `onOpen`              | —       | Async hook before subscriptions are replayed.                                                                                                                                                    |
 | `isAuthFailure`       | —       | Close events that should stop reconnecting.                                                                                                                                                      |
-| `lifecycle`           | —       | `browserLifecycle()` or `appStateLifecycle(AppState)`.                                                                                                                                           |
+| `lifecycle`           | —       | `browserLifecycle()` or `appStateLifecycle(AppState)`: pauses and wakes the socket from environment events.                                                                                      |
 | `serialize` / `parse` | JSON    | Message encoding.                                                                                                                                                                                |
 | `WebSocket`           | global  | The constructor to use. Pass `ws` in Node, or a fake in tests.                                                                                                                                   |
 
