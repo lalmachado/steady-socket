@@ -49,8 +49,8 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 - [x] Heartbeat: ping every `interval`; no pong within `timeout` → close and reconnect. Test the "open but silent" socket
 - [x] `onOpen` hook runs before replay; messages sent in it go out first
 - [x] `isAuthFailure` → `closed` with a reason, no retry loop
-- [ ] Subscriptions: reference-counted per topic (two listeners, one `subscribe` message), replayed in order after every reconnect, `unsubscribe` sent when the last listener leaves
-- [ ] Typed messages through generics `createSocket<Incoming, Outgoing>`
+- [x] Subscriptions: reference-counted per topic (two listeners, one `subscribe` message), replayed in order after every reconnect, `unsubscribe` sent when the last listener leaves
+- [x] Typed messages through generics `createSocket<Incoming, Outgoing>`
 
 ## Session 4 — React, React Native, browser lifecycle
 

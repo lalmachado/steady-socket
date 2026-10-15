@@ -7,6 +7,7 @@ export type {
   ReconnectOptions,
   Socket,
   SocketOptions,
+  SubscriptionOptions,
   WebSocketConstructor,
   WebSocketLike,
 } from './types';

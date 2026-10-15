@@ -47,6 +47,15 @@ export interface HeartbeatOptions<Incoming, Outgoing> {
   isPong: (message: Incoming) => boolean;
 }
 
+export interface SubscriptionOptions<Incoming, Outgoing> {
+  /** The message that tells the server to start sending a topic. */
+  subscribe: (topic: string) => Outgoing;
+  /** The message that tells the server to stop sending a topic. */
+  unsubscribe: (topic: string) => Outgoing;
+  /** Which topic an incoming message belongs to, or `undefined` if it belongs to none. */
+  topicOf: (message: Incoming) => string | undefined;
+}
+
 export interface SocketOptions<Incoming, Outgoing> {
   /** A string, or a sync or async function. A function is called again on every connect attempt. */
   url: string | (() => string | Promise<string>);
@@ -58,6 +67,11 @@ export interface SocketOptions<Incoming, Outgoing> {
    * socket opens. Without it, `send()` while not open throws.
    */
   queueWhileOffline?: number;
+  /**
+   * Enables `socket.subscribe()`. Topics are reference-counted and sent again, in the order they were
+   * first subscribed, after `onOpen` on every connection.
+   */
+  subscriptions?: SubscriptionOptions<Incoming, Outgoing>;
   /** Ping the server so a socket that is open but silent is detected and replaced. Off by default. */
   heartbeat?: HeartbeatOptions<Incoming, Outgoing>;
   /**
@@ -85,4 +99,11 @@ export interface Socket<Incoming, Outgoing> {
   send(message: Outgoing): void;
   onState(listener: (state: ConnectionState) => void): () => void;
   onMessage(listener: (message: Incoming) => void): () => void;
+  /**
+   * Listens to one topic. The first listener for a topic sends the `subscribe` message (or, if the
+   * socket is not open, it goes out when the socket opens); the last one to leave sends `unsubscribe`.
+   * Returns a function that removes this listener, and is safe to call more than once. Requires the
+   * `subscriptions` option.
+   */
+  subscribe(topic: string, handler: (message: Incoming) => void): () => void;
 }

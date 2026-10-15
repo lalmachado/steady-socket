@@ -25,6 +25,9 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
   const stateListeners = new Set<(state: ConnectionState) => void>();
   const messageListeners = new Set<(message: Incoming) => void>();
   const queue: Outgoing[] = [];
+  // One entry per subscribe() call, so the same handler subscribed twice counts as two listeners.
+  // A Map iterates in insertion order, which is the order topics are replayed in.
+  const topics = new Map<string, Set<{ handler: (message: Incoming) => void }>>();
 
   let state: ConnectionState = 'idle';
   let closeReason: CloseReason | undefined;
@@ -69,6 +72,10 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
         return;
       }
       for (const listener of [...messageListeners]) listener(message);
+      const topic = options.subscriptions?.topicOf(message);
+      if (topic !== undefined) {
+        for (const entry of [...(topics.get(topic) ?? [])]) entry.handler(message);
+      }
     });
     socket.addEventListener('close', (event) => {
       if (mine !== generation) return;
@@ -98,8 +105,16 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
       if (mine !== generation) return;
     }
     failedAttempts = 0;
-    setState('open');
+    // Everything goes out before `open` is announced, so a state listener that calls send() or
+    // subscribe() cannot jump ahead of replay or the queue (or be replayed twice).
+    // Order: onOpen (auth) → replayed subscriptions → messages queued while offline.
+    if (options.subscriptions) {
+      for (const topic of topics.keys()) {
+        socket.send(serialize(options.subscriptions.subscribe(topic)));
+      }
+    }
     for (const message of queue.splice(0)) socket.send(serialize(message));
+    setState('open');
     startHeartbeat(socket, mine);
   }
 
@@ -160,6 +175,7 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
     clearTimeout(retryTimer);
     retryTimer = undefined;
     queue.length = 0;
+    topics.clear();
     ws?.close(code, text);
     ws = undefined;
     closeReason = reason;
@@ -199,6 +215,31 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
       stateListeners.add(listener);
       return () => {
         stateListeners.delete(listener);
+      };
+    },
+    subscribe(topic, handler) {
+      const subscriptions = options.subscriptions;
+      if (!subscriptions) {
+        throw new Error('Cannot subscribe: set the `subscriptions` option first.');
+      }
+      if (state === 'closed') return () => undefined;
+
+      const entry = { handler };
+      let listeners = topics.get(topic);
+      if (!listeners) {
+        listeners = new Set();
+        topics.set(topic, listeners);
+        // Not open yet: the topic is in the map, so replay sends it when the socket opens.
+        if (state === 'open' && ws) ws.send(serialize(subscriptions.subscribe(topic)));
+      }
+      listeners.add(entry);
+
+      return () => {
+        // Look the set up again: after close() or a re-subscribe it may not be the same one.
+        const current = topics.get(topic);
+        if (!current?.delete(entry) || current.size > 0) return;
+        topics.delete(topic);
+        if (state === 'open' && ws) ws.send(serialize(subscriptions.unsubscribe(topic)));
       };
     },
     onMessage(listener) {
