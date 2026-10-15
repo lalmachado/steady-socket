@@ -46,9 +46,9 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 
 ## Session 3 — Core: heartbeat, auth, subscriptions
 
-- [ ] Heartbeat: ping every `interval`; no pong within `timeout` → close and reconnect. Test the "open but silent" socket
-- [ ] `onOpen` hook runs before replay; messages sent in it go out first
-- [ ] `isAuthFailure` → `closed` with a reason, no retry loop
+- [x] Heartbeat: ping every `interval`; no pong within `timeout` → close and reconnect. Test the "open but silent" socket
+- [x] `onOpen` hook runs before replay; messages sent in it go out first
+- [x] `isAuthFailure` → `closed` with a reason, no retry loop
 - [ ] Subscriptions: reference-counted per topic (two listeners, one `subscribe` message), replayed in order after every reconnect, `unsubscribe` sent when the last listener leaves
 - [ ] Typed messages through generics `createSocket<Incoming, Outgoing>`
 

@@ -10,7 +10,7 @@ The core is plain TypeScript with no dependencies. A thin React layer sits on to
 
 > **Status:** v0.1 is in progress. The API below is the target for v0.1 and may still change. See [ROADMAP.md](./ROADMAP.md).
 >
-> **Built so far:** the connection state machine, async `url`, reconnect with backoff and jitter, `send()` and `onMessage()`. Heartbeat, `onOpen`, `isAuthFailure`, subscriptions, the React layer and lifecycle adapters are not built yet, so the examples below that use them will not run until Sessions 3 and 4 land.
+> **Built so far:** the connection state machine, async `url`, reconnect with backoff and jitter, heartbeat with dead-socket detection, `onOpen`, `isAuthFailure`, `send()` and `onMessage()`. Subscriptions, the React layer and the lifecycle adapters are not built yet, so the examples below that use them will not run until Sessions 3 (second half) and 4 land.
 
 ---
 
@@ -86,7 +86,7 @@ socket.close();
 
 ## Auth on every connection
 
-Protocols differ. Some take the token in the URL, which the async `url` option covers. Others expect an auth message first. `onOpen` runs after the socket opens and **before** subscriptions are replayed, so the server always sees auth first:
+Protocols differ. Some take the token in the URL, which the async `url` option covers. Others expect an auth message first. `onOpen` runs after the socket opens and **before** anything else is sent, so the server always sees auth first. The socket stays `connecting` until the promise `onOpen` returns resolves; if it rejects, the connection is dropped and retried. Subscription replay will run right after it once subscriptions land:
 
 ```ts
 createSocket({
@@ -154,7 +154,9 @@ idle ──connect()──▶ connecting ──open──▶ open
               close() from any state  ─────┴────▶ closed
 ```
 
-`close()` is final: it works from any state, cancels pending timers, and the socket never reconnects. `connect()` only does something from `idle`. When a socket ends up `closed`, `socket.closeReason` says why (`'closed-by-user'`, `'connection-lost'` when reconnecting is off, or `'max-attempts'`).
+`close()` is final: it works from any state, cancels pending timers, and the socket never reconnects. `connect()` only does something from `idle`. When a socket ends up `closed`, `socket.closeReason` says why (`'closed-by-user'`, `'connection-lost'` when reconnecting is off, `'max-attempts'`, or `'auth-failure'` when `isAuthFailure` returned true for the close event).
+
+With `heartbeat` set, a pong that does not arrive within `timeout` closes the socket with code 4000 and goes to `reconnecting` straight away, without waiting for a `close` event that a dead connection may never send. Pongs are consumed by the heartbeat and are not passed to `onMessage` listeners.
 
 `socket.state` always holds the current state, and `onState` notifies every transition. A connection that fails auth (`isAuthFailure`) goes to `closed` with a reason, rather than retrying forever.
 

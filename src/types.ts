@@ -1,7 +1,7 @@
 export type ConnectionState = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed';
 
 /** Why a socket ended up in `closed`. */
-export type CloseReason = 'closed-by-user' | 'connection-lost' | 'max-attempts';
+export type CloseReason = 'closed-by-user' | 'connection-lost' | 'max-attempts' | 'auth-failure';
 
 /** The subset of the `WebSocket` API this library relies on. Browsers, React Native and `ws` all fit. */
 export interface WebSocketLike {
@@ -9,10 +9,7 @@ export interface WebSocketLike {
   close(code?: number, reason?: string): void;
   addEventListener(type: 'open' | 'error', listener: () => void): void;
   addEventListener(type: 'message', listener: (event: { data: unknown }) => void): void;
-  addEventListener(
-    type: 'close',
-    listener: (event: { code: number; reason: string }) => void,
-  ): void;
+  addEventListener(type: 'close', listener: (event: CloseInfo) => void): void;
 }
 
 export type WebSocketConstructor = new (
@@ -35,6 +32,21 @@ export interface ReconnectOptions {
   random?: () => number;
 }
 
+export interface CloseInfo {
+  code: number;
+  reason: string;
+}
+
+export interface HeartbeatOptions<Incoming, Outgoing> {
+  /** Send a ping this often while the socket is open, in ms. */
+  interval: number;
+  /** If no pong arrives within this many ms of a ping, the socket is treated as dead, in ms. */
+  timeout: number;
+  ping: () => Outgoing;
+  /** Pongs are consumed by the heartbeat and are not passed to `onMessage` listeners. */
+  isPong: (message: Incoming) => boolean;
+}
+
 export interface SocketOptions<Incoming, Outgoing> {
   /** A string, or a sync or async function. A function is called again on every connect attempt. */
   url: string | (() => string | Promise<string>);
@@ -46,6 +58,16 @@ export interface SocketOptions<Incoming, Outgoing> {
    * socket opens. Without it, `send()` while not open throws.
    */
   queueWhileOffline?: number;
+  /** Ping the server so a socket that is open but silent is detected and replaced. Off by default. */
+  heartbeat?: HeartbeatOptions<Incoming, Outgoing>;
+  /**
+   * Runs once per connection, as soon as the WebSocket opens. Messages sent through `send` go out
+   * first, before anything queued with `queueWhileOffline`. The socket stays `connecting` until the
+   * returned promise resolves. If it rejects, the connection is dropped and retried.
+   */
+  onOpen?: (send: (message: Outgoing) => void) => void | Promise<void>;
+  /** Close events for which `true` is returned stop reconnecting: the socket goes to `closed`. */
+  isAuthFailure?: (event: CloseInfo) => boolean;
   serialize?: (message: Outgoing) => string;
   parse?: (data: unknown) => Incoming;
   /** The `WebSocket` constructor to use. Defaults to the global one. */

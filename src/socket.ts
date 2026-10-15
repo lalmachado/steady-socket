@@ -30,6 +30,8 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
   let closeReason: CloseReason | undefined;
   let ws: WebSocketLike | undefined;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  let pingTimer: ReturnType<typeof setInterval> | undefined;
+  let pongTimer: ReturnType<typeof setTimeout> | undefined;
   let failedAttempts = 0;
   // Bumped whenever the current attempt is abandoned, so late async results can tell they are stale.
   let generation = 0;
@@ -56,23 +58,82 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
     const socket = new connectWith(url, options.protocols);
     ws = socket;
     socket.addEventListener('open', () => {
-      if (mine !== generation) return;
-      failedAttempts = 0;
-      setState('open');
-      for (const message of queue.splice(0)) socket.send(serialize(message));
+      void handleOpen(socket, mine);
     });
     socket.addEventListener('message', (event) => {
       if (mine !== generation) return;
       const message = parse(event.data);
+      if (options.heartbeat?.isPong(message)) {
+        clearTimeout(pongTimer);
+        pongTimer = undefined;
+        return;
+      }
       for (const listener of [...messageListeners]) listener(message);
     });
-    socket.addEventListener('close', () => {
+    socket.addEventListener('close', (event) => {
       if (mine !== generation) return;
+      // This attempt is over. Bumping the generation also cancels an `onOpen` still in flight.
+      generation++;
+      stopHeartbeat();
       ws = undefined;
-      scheduleRetry();
+      if (options.isAuthFailure?.(event)) stop('auth-failure');
+      else scheduleRetry();
     });
     // An `error` event is always followed by `close`, so there is nothing to do here.
     socket.addEventListener('error', () => undefined);
+  }
+
+  async function handleOpen(socket: WebSocketLike, mine: number): Promise<void> {
+    if (mine !== generation) return;
+    // Without `onOpen` there is no `await`, so this part runs synchronously.
+    if (options.onOpen) {
+      try {
+        await options.onOpen((message) => {
+          if (mine === generation) socket.send(serialize(message));
+        });
+      } catch {
+        if (mine === generation) abandon(socket, 4001, 'onOpen failed');
+        return;
+      }
+      if (mine !== generation) return;
+    }
+    failedAttempts = 0;
+    setState('open');
+    for (const message of queue.splice(0)) socket.send(serialize(message));
+    startHeartbeat(socket, mine);
+  }
+
+  function startHeartbeat(socket: WebSocketLike, mine: number): void {
+    const heartbeat = options.heartbeat;
+    if (!heartbeat) return;
+    pingTimer = setInterval(() => {
+      // A ping is still waiting for its pong: do not stack another one on top.
+      if (pongTimer !== undefined) return;
+      socket.send(serialize(heartbeat.ping()));
+      pongTimer = setTimeout(() => {
+        if (mine === generation) abandon(socket, 4000, 'heartbeat timeout');
+      }, heartbeat.timeout);
+    }, heartbeat.interval);
+  }
+
+  function stopHeartbeat(): void {
+    clearInterval(pingTimer);
+    clearTimeout(pongTimer);
+    pingTimer = undefined;
+    pongTimer = undefined;
+  }
+
+  /**
+   * Gives up on a connection that is still nominally open (dead heartbeat, failed `onOpen`) and
+   * retries. A dead socket may never emit `close`, so we do not wait for it: the generation bump
+   * makes any late events from it irrelevant.
+   */
+  function abandon(socket: WebSocketLike, code: number, reason: string): void {
+    generation++;
+    stopHeartbeat();
+    ws = undefined;
+    socket.close(code, reason);
+    scheduleRetry();
   }
 
   function scheduleRetry(): void {
@@ -95,6 +156,7 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
 
   function stop(reason: CloseReason, code?: number, text?: string): void {
     generation++;
+    stopHeartbeat();
     clearTimeout(retryTimer);
     retryTimer = undefined;
     queue.length = 0;
