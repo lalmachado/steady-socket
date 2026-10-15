@@ -23,7 +23,7 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 
 - [x] Read the docs and source of `partysocket` and `react-use-websocket`. For each, note whether it has: heartbeat with dead-socket detection, subscription replay after reconnect, an auth step that runs before replay, auth-failure stop, React Native foreground handling, and an observable state machine
 - [x] Keep only the README "Why" points that hold up after that check. If `partysocket` already does most of it, narrow the pitch to what's left (likely subscription replay ordering plus mobile lifecycle) rather than claiming a broader gap
-- [ ] Confirm the name `steady-socket` is still free on npm and on GitHub (npm: free, checked; GitHub: search by hand)
+- [x] Confirm the name `steady-socket` is still free on npm and on GitHub
 
 ## Session 1 — Repo and tooling
 
@@ -33,7 +33,7 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 - [x] Build with `tsup`: ESM + CJS + `.d.ts`
 - [x] Vitest, ESLint (typescript-eslint), Prettier
 - [x] GitHub Actions `ci.yml`: install, lint, typecheck, test, build, `publint`, `attw --pack`, on Node 20 and 22
-- [ ] Branch protection on `main`: CI must pass
+- [x] Branch protection on `main`: CI must pass
 
 ## Session 2 — Core: connection and reconnect
 
