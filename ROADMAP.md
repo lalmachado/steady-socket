@@ -33,7 +33,7 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 - [x] Build with `tsup`: ESM + CJS + `.d.ts`
 - [x] Vitest, ESLint (typescript-eslint), Prettier
 - [x] GitHub Actions `ci.yml`: install, lint, typecheck, test, build, `publint`, `attw --pack`, on Node 20 and 22
-- [ ] Branch protection on `main`: CI must pass
+- [x] Branch protection on `main`: CI must pass
 
 ## Session 2 — Core: connection and reconnect
 
