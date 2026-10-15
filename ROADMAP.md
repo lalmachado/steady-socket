@@ -21,18 +21,18 @@ Rough size: four or five working sessions (weekends or evenings).
 
 The closest existing libraries are `partysocket` (actively maintained, has React hooks), `reconnecting-websocket` (no release since 2022) and `react-use-websocket` (React only).
 
-- [ ] Read the docs and source of `partysocket` and `react-use-websocket`. For each, note whether it has: heartbeat with dead-socket detection, subscription replay after reconnect, an auth step that runs before replay, auth-failure stop, React Native foreground handling, and an observable state machine
-- [ ] Keep only the README "Why" points that hold up after that check. If `partysocket` already does most of it, narrow the pitch to what's left (likely subscription replay ordering plus mobile lifecycle) rather than claiming a broader gap
-- [ ] Confirm the name `steady-socket` is still free on npm and on GitHub
+- [x] Read the docs and source of `partysocket` and `react-use-websocket`. For each, note whether it has: heartbeat with dead-socket detection, subscription replay after reconnect, an auth step that runs before replay, auth-failure stop, React Native foreground handling, and an observable state machine
+- [x] Keep only the README "Why" points that hold up after that check. If `partysocket` already does most of it, narrow the pitch to what's left (likely subscription replay ordering plus mobile lifecycle) rather than claiming a broader gap
+- [ ] Confirm the name `steady-socket` is still free on npm and on GitHub (npm: free, checked; GitHub: search by hand)
 
 ## Session 1 — Repo and tooling
 
-- [ ] `git init`, MIT licence, `.editorconfig`, `.nvmrc` (Node 22)
-- [ ] `package.json` with `exports` for `.`, `./react`, `./react-native`; `sideEffects: false`; `react` as an optional peer dependency
-- [ ] TypeScript in strict mode, including `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`
-- [ ] Build with `tsup`: ESM + CJS + `.d.ts`
-- [ ] Vitest, ESLint (typescript-eslint), Prettier
-- [ ] GitHub Actions `ci.yml`: install, lint, typecheck, test, build, `publint`, `attw --pack`, on Node 20 and 22
+- [x] `git init`, MIT licence, `.editorconfig`, `.nvmrc` (Node 22)
+- [x] `package.json` with `exports` for `.`, `./react`, `./react-native`; `sideEffects: false`; `react` as an optional peer dependency
+- [x] TypeScript in strict mode, including `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`
+- [x] Build with `tsup`: ESM + CJS + `.d.ts`
+- [x] Vitest, ESLint (typescript-eslint), Prettier
+- [x] GitHub Actions `ci.yml`: install, lint, typecheck, test, build, `publint`, `attw --pack`, on Node 20 and 22
 - [ ] Branch protection on `main`: CI must pass
 
 ## Session 2 — Core: connection and reconnect
