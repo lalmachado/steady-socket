@@ -54,8 +54,8 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 
 ## Session 4 — React, React Native, browser lifecycle
 
-- [ ] `SocketProvider`, `useSocket`, `useSocketState` (`useSyncExternalStore`), `useSubscription` (stable across new handler identities, safe under React Strict Mode double effects)
-- [ ] Tests with React Testing Library
+- [x] `SocketProvider`, `useSocket`, `useSocketState` (`useSyncExternalStore`), `useSubscription` (stable across new handler identities, safe under React Strict Mode double effects)
+- [x] Tests with React Testing Library
 - [ ] `browserLifecycle()`: `online` → reconnect now, `offline` → pause, `visibilitychange` → check health when visible
 - [ ] `appStateLifecycle(AppState)`: back to `active` → skip the backoff wait and send a ping straight away
 - [ ] Size budget with `size-limit` in CI (target: core under 3 kB min+gzip)

@@ -1,2 +1,3 @@
-// React bindings arrive in Session 4.
-export {};
+export { SocketProvider, useSocket } from './context';
+export type { SocketProviderProps } from './context';
+export { useSocketState, useSubscription } from './hooks';

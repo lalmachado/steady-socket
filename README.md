@@ -10,7 +10,7 @@ The core is plain TypeScript with no dependencies. A thin React layer sits on to
 
 > **Status:** v0.1 is in progress. The API below is the target for v0.1 and may still change. See [ROADMAP.md](./ROADMAP.md).
 >
-> **Built so far:** the connection state machine, async `url`, reconnect with backoff and jitter, heartbeat with dead-socket detection, `onOpen`, `isAuthFailure`, subscriptions, `send()` and `onMessage()`. The React layer and the lifecycle adapters are not built yet, so the React and React Native examples below will not run until Session 4 lands.
+> **Built so far:** the connection state machine, async `url`, reconnect with backoff and jitter, heartbeat with dead-socket detection, `onOpen`, `isAuthFailure`, subscriptions, `send()` and `onMessage()`, and the React layer (`SocketProvider`, `useSocket`, `useSocketState`, `useSubscription`). The lifecycle adapters (`browserLifecycle`, `appStateLifecycle`) are not built yet, so the `lifecycle` option and the React Native example below will not work until the rest of Session 4 lands.
 
 ---
 
@@ -115,6 +115,8 @@ With the `subscriptions` option, `socket.subscribe(topic, handler)` listens to o
 ```tsx
 import { SocketProvider, useSocketState, useSubscription } from 'steady-socket/react';
 
+type EventMessage = Extract<Incoming, { type: 'event' }>;
+
 function App() {
   return (
     <SocketProvider socket={socket}>
@@ -127,14 +129,18 @@ function BedStatus({ id }: { id: string }) {
   const state = useSocketState(); // built on useSyncExternalStore
   const [position, setPosition] = useState<number>();
 
-  useSubscription(`bed:${id}`, (msg) => setPosition(msg.payload.position));
+  useSubscription<EventMessage>(`bed:${id}`, (msg) => setPosition(msg.payload.position));
 
   if (state !== 'open') return <p>Reconnecting…</p>;
   return <p>Position: {position}</p>;
 }
 ```
 
-`useSubscription` subscribes on mount, unsubscribes on unmount, and does not resubscribe when you pass a new handler on every render.
+- **`SocketProvider`** only provides the socket. You create it, call `connect()` and decide when to `close()` it.
+- **`useSocketState()`** re-renders only when the connection state changes. During server rendering it returns `'idle'`.
+- **`useSubscription(topic, handler)`** subscribes on mount and unsubscribes on unmount. It does not resubscribe when you pass a new handler on every render, and always calls the latest one. It resubscribes only if `topic` or the socket changes. It is safe under React Strict Mode: the mount/unmount/mount cycle leaves exactly one listener.
+- **Types:** the provider erases the socket's message types, so `useSocket<Incoming, Outgoing>()` and `useSubscription<Incoming>()` take them as type arguments. Like `fetch<T>()`, that is your claim and is not checked at runtime.
+- Needs React 18 or newer (it uses `useSyncExternalStore`).
 
 ## React Native
 
