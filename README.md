@@ -10,7 +10,7 @@ The core is plain TypeScript with no dependencies. A thin React layer sits on to
 
 > **Status:** v0.1 is in progress. The API below is the target for v0.1 and may still change. See [ROADMAP.md](./ROADMAP.md).
 >
-> **Built so far:** the connection state machine, async `url`, reconnect with backoff and jitter, heartbeat with dead-socket detection, `onOpen`, `isAuthFailure`, `send()` and `onMessage()`. Subscriptions, the React layer and the lifecycle adapters are not built yet, so the examples below that use them will not run until Sessions 3 (second half) and 4 land.
+> **Built so far:** the connection state machine, async `url`, reconnect with backoff and jitter, heartbeat with dead-socket detection, `onOpen`, `isAuthFailure`, subscriptions, `send()` and `onMessage()`. The React layer and the lifecycle adapters are not built yet, so the React and React Native examples below will not run until Session 4 lands.
 
 ---
 
@@ -74,7 +74,7 @@ socket.onState((state) => console.log(state));
 // 'idle' → 'connecting' → 'open' → 'reconnecting' → 'open' … → 'closed'
 
 const stop = socket.subscribe('bed:42', (msg) => {
-  console.log(msg.payload);
+  if (msg.type === 'event') console.log(msg.payload);
 });
 
 socket.connect();
@@ -86,7 +86,7 @@ socket.close();
 
 ## Auth on every connection
 
-Protocols differ. Some take the token in the URL, which the async `url` option covers. Others expect an auth message first. `onOpen` runs after the socket opens and **before** anything else is sent, so the server always sees auth first. The socket stays `connecting` until the promise `onOpen` returns resolves; if it rejects, the connection is dropped and retried. Subscription replay will run right after it once subscriptions land:
+Protocols differ. Some take the token in the URL, which the async `url` option covers. Others expect an auth message first. `onOpen` runs after the socket opens and **before** anything else is sent, so the server always sees auth first. The socket stays `connecting` until the promise `onOpen` returns resolves; if it rejects, the connection is dropped and retried. Subscriptions are replayed right after it, and messages queued while offline go out after that:
 
 ```ts
 createSocket({
@@ -99,6 +99,16 @@ createSocket({
   // …
 });
 ```
+
+## Subscriptions
+
+With the `subscriptions` option, `socket.subscribe(topic, handler)` listens to one topic and returns a function that stops listening.
+
+- **Reference-counted.** Two listeners on `bed:42` send one `subscribe` message. `unsubscribe` is sent when the last listener leaves. Calling a returned function twice is harmless.
+- **Replayed on every connection.** The server forgets everything when a connection drops, so the topics are sent again, in the order they were first subscribed, after `onOpen` finishes. A topic that everyone left while the socket was offline is not replayed.
+- **Routed by `topicOf`.** A message reaches the listeners of the topic `topicOf` returns for it. Messages with no topic only reach `onMessage`.
+- **Order on each connection:** `onOpen` messages, then replayed subscriptions, then anything queued with `queueWhileOffline`. All of it is sent before the state becomes `open`, so a state listener can't jump ahead of it.
+- After `close()`, topics are forgotten and `subscribe()` does nothing.
 
 ## React
 
