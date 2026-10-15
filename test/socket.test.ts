@@ -1,21 +1,8 @@
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { createSocket } from '../src';
-import type { ConnectionState, SocketOptions, WebSocketConstructor } from '../src';
+import type { WebSocketConstructor } from '../src';
 import { FakeWebSocket } from './helpers/fake-websocket';
-
-type Msg = { type: string };
-
-function setup(overrides: Partial<SocketOptions<Msg, Msg>> = {}) {
-  const socket = createSocket<Msg, Msg>({
-    url: 'wss://example.test/ws',
-    WebSocket: FakeWebSocket,
-    reconnect: { minDelay: 1000, maxDelay: 8000, factor: 2, jitter: 'none' },
-    ...overrides,
-  });
-  const states: ConnectionState[] = [];
-  socket.onState((s) => states.push(s));
-  return { socket, states };
-}
+import { setup, type Msg } from './helpers/setup';
 
 beforeEach(() => {
   vi.useFakeTimers();
