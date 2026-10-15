@@ -78,11 +78,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:package": "publint && attw --pack . --profile node16",
-    "size": "size-limit"
+    "size": "size-limit",
+    "release": "pnpm build && changeset publish",
+    "changeset": "changeset"
   },
   "packageManager": "pnpm@10.28.0",
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
+    "@changesets/cli": "^3.0.3",
     "@eslint/js": "^10.0.1",
     "@size-limit/preset-small-lib": "^14.2.0",
     "@testing-library/react": "^16.3.3",
@@ -129,5 +132,9 @@
       "limit": "500 B",
       "gzip": true
     }
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }

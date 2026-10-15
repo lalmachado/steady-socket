@@ -38,7 +38,7 @@ React and React Native support are included as subpath exports. `react` is an op
 ```ts
 import { createSocket } from 'steady-socket';
 
-type Incoming = { type: 'pong' } | { type: 'event'; topic: string; payload: unknown };
+type Incoming = { type: 'pong' } | { type: 'event'; topic: string; payload: { position: number } };
 
 type Outgoing =
   | { type: 'ping' }

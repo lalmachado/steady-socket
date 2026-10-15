@@ -1,0 +1,56 @@
+name: Release
+
+# The npm trusted publisher (once set up) is bound to this file's name: keep it `release.yml`.
+on:
+  push:
+    branches: [main]
+
+# Never run two releases at once, and never cancel one halfway through publishing.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Version PR or publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the version commit, tags and GitHub releases
+      pull-requests: write # open and update the "Version packages" PR
+      id-token: write # npm trusted publishing (OIDC) and provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or newer.
+      - run: npm install -g npm@^11.5.1
+      - run: pnpm install --frozen-lockfile
+      # Whatever gets published must have passed the same checks as a pull request.
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm check:package
+      - run: pnpm size
+      - uses: changesets/action@v1
+        with:
+          publish: pnpm release
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
+          createGithubReleases: true
+        env:
+          # A token made by a person, when there is one: pull requests opened with the default
+          # GITHUB_TOKEN do not start CI, so a "Version packages" PR could never pass the required
+          # checks. Falls back to GITHUB_TOKEN until the RELEASE_TOKEN secret exists.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          # Only needed for the very first publish. Delete the secret once the npm trusted
+          # publisher is set up; after that, publishing authenticates with OIDC alone.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
