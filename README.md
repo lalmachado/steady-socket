@@ -2,15 +2,13 @@
 
 > A WebSocket client that stays connected — on the web and in React Native.
 
-![status](https://img.shields.io/badge/status-pre--release-orange) ![license](https://img.shields.io/badge/license-MIT-blue)
+[![npm](https://img.shields.io/npm/v/steady-socket)](https://www.npmjs.com/package/steady-socket) [![CI](https://github.com/lalmachado/steady-socket/actions/workflows/ci.yml/badge.svg)](https://github.com/lalmachado/steady-socket/actions/workflows/ci.yml) ![license](https://img.shields.io/badge/license-MIT-blue)
 
 `steady-socket` wraps the platform `WebSocket` with the parts every real-time app ends up rewriting: heartbeats that catch dead connections, reconnects with backoff and jitter, fresh auth on every reconnect, subscriptions that come back by themselves, and awareness of when a mobile app goes to the background.
 
 The core is plain TypeScript with no dependencies. A thin React layer sits on top and runs unchanged in Next.js and Expo.
 
-> **Status:** v0.1 is in progress. The API below is the target for v0.1 and may still change. See [ROADMAP.md](./ROADMAP.md).
->
-> **Built so far:** everything described below: the connection state machine, async `url`, reconnect with backoff and jitter, heartbeat with dead-socket detection, `onOpen`, `isAuthFailure`, subscriptions, `send()` and `onMessage()`, the React layer, and the browser and React Native lifecycle adapters. What is left before 0.1.0 is the release itself (see the roadmap), so nothing is published to npm yet.
+> **Status:** early release (0.x). The API is complete for what is described below and is covered by tests, but it may still change in minor versions until 1.0. Changes are listed in [CHANGELOG.md](./CHANGELOG.md); the plan is in [ROADMAP.md](./ROADMAP.md).
 
 ---
 
@@ -213,7 +211,7 @@ Because the `WebSocket` constructor can be injected, you can test code that uses
 
 ## Contributing
 
-Issues and PRs are welcome. `npm test` runs the suite, and `npx changeset` records a change for the next release.
+Issues and PRs are welcome. `pnpm test` runs the suite and `pnpm changeset` records a change for the next release. [RELEASING.md](./RELEASING.md) explains how releases are published.
 
 ## License
 
