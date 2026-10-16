@@ -1,5 +1,11 @@
 # steady-socket
 
+## 0.1.1
+
+### Patch Changes
+
+- 9d62e6f: Docs only: the README now shows the published status, an npm version badge and the current contributing commands.
+
 ## 0.1.0
 
 ### Minor Changes
