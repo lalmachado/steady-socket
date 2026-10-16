@@ -9,8 +9,8 @@ Releases are automated with [Changesets](https://github.com/changesets/changeset
    write one line. Commit the generated `.changeset/*.md` file with the change.
 2. When it merges to `main`, the release workflow runs the full checks, then opens or updates a
    **chore: version packages** PR with the new version and `CHANGELOG.md`.
-3. Merging that PR publishes to npm with provenance and creates the `v*` tag. Check the GitHub
-   release afterwards (see "Known gaps").
+3. Merging that PR publishes to npm with provenance, then `scripts/tag-release.sh` pushes the `v*`
+   tag and creates the GitHub release, using that version's section of `CHANGELOG.md` as the note.
 
 ## How publishing is authorised
 
@@ -26,14 +26,18 @@ Releases are automated with [Changesets](https://github.com/changesets/changeset
 - **Repo setting:** Settings → Actions → General → "Allow GitHub Actions to create and approve pull
   requests".
 
-## Known gaps
+## Things to know
 
-- **npm held the first publish for approval** ("staged publishing"). `0.1.0` stayed a placeholder
-  until it was approved on npmjs.com. It is not yet known whether later releases are held too; if a
-  release run is green but the new version is missing on npm, look for a pending release there.
-- **A new trusted publisher must be validated** by one successful publish within a few days of being
-  created (npm shows "Pending validation").
-- **The Changesets action did not push the tag or create the GitHub release** for `0.1.0`, which
-  were created by hand. The likely cause is that the current Changesets CLI prints publish results
-  in a format the action does not recognise. After each release, check that the tag and GitHub
-  release exist.
+- **The tag and GitHub release come from `scripts/tag-release.sh`, not from the Changesets action.**
+  The action did not push the tag or create the release for `0.1.0` or `0.1.1`; the likely cause is
+  that the current Changesets CLI prints publish results in a format the action does not recognise.
+  The script runs on every push to `main` and does nothing unless npm has the version in
+  `package.json` and the repo lacks its tag or release, so it also catches up a release that was
+  missed. It tags the commit that set the version, not necessarily `HEAD`. To re-run it without a
+  new commit, use **Run workflow** on the Release workflow in the Actions tab.
+- **npm held the first publish for approval** ("staged publishing"), because the package was new.
+  `0.1.1`, published by the trusted publisher, was not held. If a release run is green but the new
+  version is missing on npm, look for a pending release on npmjs.com and approve it; the tag and
+  release step then skips until the version exists, and the manual re-run above creates them.
+- **`NODE_AUTH_TOKEN` must stay unset in the workflow.** Setting it overrides the trusted-publisher
+  login.
