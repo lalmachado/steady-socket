@@ -4,6 +4,8 @@ name: Release
 on:
   push:
     branches: [main]
+  # Lets you re-run the release from the Actions tab (the tag and release step catches up).
+  workflow_dispatch:
 
 # Never run two releases at once, and never cancel one halfway through publishing.
 concurrency:
@@ -23,6 +25,8 @@ jobs:
       id-token: write # npm trusted publishing (OIDC) and provenance
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tag-release.sh walks the history to find the version commit
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -53,3 +57,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           # No npm token here on purpose: publishing authenticates through the npm trusted
           # publisher (OIDC). Setting NODE_AUTH_TOKEN would override that.
+      # The Changesets action publishes to npm but, with the current Changesets CLI, does not push
+      # the tag or create the GitHub release. This step does, and does nothing when they exist.
+      - name: Tag and GitHub release
+        run: bash scripts/tag-release.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
