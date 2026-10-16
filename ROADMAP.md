@@ -6,12 +6,12 @@ A small, finished, published package: a dependency-free TypeScript core, a thin 
 
 "Done" means all of this is true:
 
-- [ ] `npm install steady-socket` works, and the README examples run as written
-- [ ] Every connection state transition is covered by a test
-- [ ] CI is green on every PR: lint, typecheck, test and build
-- [ ] The package passes `publint` and `@arethetypeswrong/cli` (correct ESM/CJS exports and types)
-- [ ] Releases go out through Changesets and GitHub Actions, with npm provenance
-- [ ] The README states plainly what this does that the alternatives don't
+- [x] `npm install steady-socket` works, and the README examples run as written
+- [x] Every connection state transition is covered by a test
+- [x] CI is green on every PR: lint, typecheck, test and build
+- [x] The package passes `publint` and `@arethetypeswrong/cli` (correct ESM/CJS exports and types)
+- [x] Releases go out through Changesets and GitHub Actions, with npm provenance
+- [x] The README states plainly what this does that the alternatives don't
 
 Rough size: four or five working sessions (weekends or evenings).
 
@@ -62,10 +62,10 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 
 ## Session 5 — Release
 
-- [ ] Changesets set up; release workflow on `main` opens a "Version packages" PR and publishes on merge
+- [x] Changesets set up; release workflow on `main` opens a "Version packages" PR and publishes on merge
 - [ ] npm trusted publishing (OIDC) with provenance, so there's no npm token stored in GitHub
 - [x] README examples checked by hand against the built package
-- [ ] Publish `0.1.0`, tag it, write a short GitHub release note
+- [x] Publish `0.1.0`, tag it, write a short GitHub release note
 - [ ] Pin the repo on your GitHub profile
 
 ---

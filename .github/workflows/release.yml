@@ -51,6 +51,5 @@ jobs:
           # GITHUB_TOKEN do not start CI, so a "Version packages" PR could never pass the required
           # checks. Falls back to GITHUB_TOKEN until the RELEASE_TOKEN secret exists.
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
-          # Only needed for the very first publish. Delete the secret once the npm trusted
-          # publisher is set up; after that, publishing authenticates with OIDC alone.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # No npm token here on purpose: publishing authenticates through the npm trusted
+          # publisher (OIDC). Setting NODE_AUTH_TOKEN would override that.
