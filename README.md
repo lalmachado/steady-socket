@@ -139,6 +139,7 @@ function BedStatus({ id }: { id: string }) {
 - **`useSubscription(topic, handler)`** subscribes on mount and unsubscribes on unmount. It does not resubscribe when you pass a new handler on every render, and always calls the latest one. It resubscribes only if `topic` or the socket changes. It is safe under React Strict Mode: the mount/unmount/mount cycle leaves exactly one listener.
 - **Types:** the provider erases the socket's message types, so `useSocket<Incoming, Outgoing>()` and `useSubscription<Incoming>()` take them as type arguments. Like `fetch<T>()`, that is your claim and is not checked at runtime.
 - Needs React 18 or newer (it uses `useSyncExternalStore`).
+- **Create the socket in an effect, not at module level.** `close()` is final, and React Strict Mode runs an effect, cleans it up and runs it again in development; a client component also renders on the server, where there is no connection to make. So create, `connect()` and `close()` the socket together inside one `useEffect`, and render the provider once it exists. The [web demo](./apps/web/app/demo.tsx) does exactly that.
 
 ## React Native and the browser
 
@@ -212,8 +213,11 @@ Because the `WebSocket` constructor can be injected, you can test code that uses
 ## Demo
 
 `apps/demo-server` is a WebSocket server that can go silent while staying open, restart, and expire
-tokens on request, so you can watch `steady-socket` recover. See its [README](./apps/demo-server/README.md).
-Web and React Native demo apps are planned and are not built yet.
+tokens on request. `apps/web` is a Next.js page that uses `steady-socket` against it, so you can
+break the connection and watch it recover. See the [web demo](./apps/web/README.md) and the
+[server](./apps/demo-server/README.md). A React Native demo is planned and is not built yet.
+
+![The web demo: a silent connection is detected, replaced and subscribed again](./docs/web-demo.gif)
 
 ## Contributing
 

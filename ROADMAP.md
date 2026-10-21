@@ -75,7 +75,7 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 **Phase two: demos.** Demo apps live in `apps/*` as private pnpm workspace members; the published package stays at the repo root. Moving it to `packages/steady-socket` is possible later but not needed.
 
 - [x] `apps/demo-server`: a tiny `ws` server that can simulate a dead connection, a restart, and an expired token
-- [ ] `apps/web` (Next.js App Router): the README's React example against the demo server
+- [x] `apps/web` (Next.js App Router): the README's React example against the demo server, with an end-to-end check in a real browser and a GIF
 - [ ] `apps/mobile` (Expo): the same, with `appStateLifecycle`
 - [ ] A short GIF of the Expo app reconnecting after airplane mode
 

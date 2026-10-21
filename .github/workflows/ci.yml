@@ -33,6 +33,10 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # A production Next.js build of the web demo, against the package that was just built.
+      - run: pnpm --filter @steady-socket/demo-web build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
       - run: pnpm check:package
       # size-limit itself needs Node 22 (fs.glob), and bundle size does not depend on the Node version.
       - run: pnpm size

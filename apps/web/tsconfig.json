@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "steady-socket": ["../../src/index.ts"],
+      "steady-socket/react": ["../../src/react/index.ts"]
+    }
+  },
+  "include": ["next-env.d.ts", "app", "e2e", "next.config.ts", ".next/types/**/*.ts"]
+}
