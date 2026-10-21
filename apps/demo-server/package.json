@@ -1,0 +1,22 @@
+{
+  "name": "@steady-socket/demo-server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A WebSocket server that misbehaves on demand, for demoing steady-socket.",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

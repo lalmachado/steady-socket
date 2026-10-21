@@ -71,11 +71,11 @@
   },
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && pnpm -r --filter \"./apps/*\" run typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run && pnpm -r --filter \"./apps/*\" run test",
     "test:watch": "vitest",
     "check:package": "publint && attw --pack . --profile node16",
     "size": "size-limit",
