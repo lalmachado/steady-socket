@@ -1,0 +1,27 @@
+{
+  "name": "@steady-socket/demo-web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A Next.js (App Router) demo of steady-socket against the demo server.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "e2e": "next build && tsx e2e/run.ts"
+  },
+  "dependencies": {
+    "next": "^16.4.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "steady-socket": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "playwright-core": "^1.64.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3"
+  }
+}
