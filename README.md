@@ -209,6 +209,12 @@ With `heartbeat` set, a pong that does not arrive within `timeout` closes the so
 
 Because the `WebSocket` constructor can be injected, you can test code that uses `steady-socket` without a server. The package's own tests use a fake socket and fake timers to drive every transition, including heartbeats that never get a pong.
 
+## Demo
+
+`apps/demo-server` is a WebSocket server that can go silent while staying open, restart, and expire
+tokens on request, so you can watch `steady-socket` recover. See its [README](./apps/demo-server/README.md).
+Web and React Native demo apps are planned and are not built yet.
+
 ## Contributing
 
 Issues and PRs are welcome. `pnpm test` runs the suite and `pnpm changeset` records a change for the next release. [RELEASING.md](./RELEASING.md) explains how releases are published.

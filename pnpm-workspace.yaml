@@ -1,0 +1,5 @@
+# The published package is the repo root ('.'), and Changesets only versions packages it finds here,
+# so the root must be listed. The demo apps live in apps/* and are private.
+packages:
+  - '.'
+  - apps/*
