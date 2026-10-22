@@ -26,7 +26,9 @@ A phone cannot reach `127.0.0.1` on your computer, so the demo server has to lis
 (`HOST=0.0.0.0`; only do this on a network you trust, the server has no real security). The app
 finds the server by itself: it uses the address Expo is serving from, on port 8787. If that is
 wrong (a tunnel, for example), set `EXPO_PUBLIC_DEMO_SERVER=http://<address>:8787` before
-`pnpm start`.
+`pnpm start`. Each app launch makes up its own session id and sends it with every call, so against a
+[public server](../demo-server/README.md#running-it-for-other-people-public-mode) your "break it"
+buttons do not reach other visitors.
 
 ## Things to try
 
