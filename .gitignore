@@ -5,3 +5,5 @@ coverage/
 .DS_Store
 .next/
 next-env.d.ts
+.expo/
+.expo-export/
