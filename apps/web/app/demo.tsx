@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { SocketProvider, useSocket, useSocketState, useSubscription } from 'steady-socket/react';
-import { createDemoSocket, SERVER, type DemoSocket, type Incoming, type Outgoing } from './socket';
+import { api, createDemoSocket, type DemoSocket, type Incoming, type Outgoing } from './socket';
 
 interface LogEntry {
   at: number;
@@ -148,7 +148,7 @@ function Controls({
   const call = (path: string, label: string) => async () => {
     note(`you: ${label}`);
     try {
-      await fetch(`${SERVER}${path}`, { method: 'POST' });
+      await fetch(api(path), { method: 'POST' });
     } catch {
       note('the demo server is not reachable');
     }
@@ -195,7 +195,7 @@ function ServerCard() {
     let cancelled = false;
     const poll = async () => {
       try {
-        const response = await fetch(`${SERVER}/state`);
+        const response = await fetch(api('/state'));
         const body = (await response.json()) as ServerState;
         if (!cancelled) setServer(body);
       } catch {

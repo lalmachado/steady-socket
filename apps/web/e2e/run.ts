@@ -5,6 +5,8 @@
  *
  * - `CHROMIUM_PATH` points at a Chromium binary. Without it, Playwright's own Chromium is used
  *   (install it once with `pnpm --filter @steady-socket/demo-web exec playwright-core install chromium`).
+ * - `E2E_PUBLIC=1` starts the demo server in public mode, as it would run when deployed: the pages
+ *   are cross-origin calls that the server only answers for their origins.
  * - `RECORD_DIR` also records a paced video of the run there, for making a GIF.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -236,6 +238,42 @@ async function scenarios(browser: Browser, server: DemoServer): Promise<void> {
   await context.close();
 }
 
+/** Two visitors at once: what one does to "the server" must not reach the other. */
+async function isolation(browser: Browser, server: DemoServer): Promise<void> {
+  console.log('\nTwo visitors at the same time');
+  const one = await openPage(browser, PROD_PORT);
+  const two = await openPage(browser, PROD_PORT);
+  for (const { page } of [one, two]) {
+    await until(async () => (await stateOf(page)) === 'open', 'the state to become open');
+    await until(async () => (await position(page)) > 0, 'the first event');
+  }
+  await until(() => server.state().connections === 2, 'two connections');
+  ok('two pages are two sessions: the server sees two connections');
+
+  // Visitor one restarts "the server", and then makes their connection go silent.
+  await one.page.getByRole('button', { name: 'Restart server (5 s)' }).click();
+  await until(async () => (await stateOf(one.page)) === 'reconnecting', 'visitor one to notice');
+  const before = await position(two.page);
+  await sleep(2500);
+  if ((await stateOf(two.page)) !== 'open') throw new Error('The restart reached the other page.');
+  await until(async () => (await position(two.page)) > before, 'events for visitor two');
+  ok("one visitor's server restart does not touch the other visitor");
+  await until(async () => (await stateOf(one.page)) === 'open', 'visitor one to recover', 20_000);
+
+  await one.page.getByRole('button', { name: 'Go silent (dead connection)' }).click();
+  await until(async () => (await stateOf(one.page)) !== 'open', 'the heartbeat to notice', 8000);
+  const during = await position(two.page);
+  await until(async () => (await position(two.page)) > during, 'events for visitor two');
+  if ((await stateOf(two.page)) !== 'open') throw new Error('The silence reached the other page.');
+  ok("and one visitor's dead connection does not touch the other either");
+
+  for (const { errors } of [one, two]) {
+    if (errors.length > 0) throw new Error(`The page logged errors:\n${errors.join('\n')}`);
+  }
+  await one.context.close();
+  await two.context.close();
+}
+
 /** `next dev` runs React Strict Mode, which runs every effect, cleans it up and runs it again. */
 async function strictMode(browser: Browser, server: DemoServer): Promise<void> {
   console.log('\nDevelopment server (next dev, React Strict Mode)');
@@ -259,13 +297,26 @@ async function main(): Promise<void> {
   let server: DemoServer | undefined;
   let browser: Browser | undefined;
   try {
-    server = await startDemoServer({ port: SERVER_PORT });
+    server = await startDemoServer({
+      port: SERVER_PORT,
+      ...(process.env['E2E_PUBLIC']
+        ? {
+            public: {
+              allowedOrigins: [
+                `http://localhost:${String(PROD_PORT)}`,
+                `http://localhost:${String(DEV_PORT)}`,
+              ],
+            },
+          }
+        : {}),
+    });
     children.push(await startNext('start', PROD_PORT));
     browser = await chromium.launch({
       ...(process.env['CHROMIUM_PATH'] ? { executablePath: process.env['CHROMIUM_PATH'] } : {}),
     });
     await scenarios(browser, server);
     if (!RECORD) {
+      await isolation(browser, server);
       // Stop the production server first: both servers write to the same `.next` directory.
       children.pop()?.kill('SIGTERM');
       await sleep(500);
