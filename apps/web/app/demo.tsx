@@ -81,9 +81,27 @@ export function Demo() {
   );
 }
 
+/** True once `active` has been true for `ms`, and false again as soon as it stops. */
+function useAfter(active: boolean, ms: number): boolean {
+  const [elapsed, setElapsed] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    const timer = setTimeout(() => {
+      setElapsed(true);
+    }, ms);
+    return () => {
+      clearTimeout(timer);
+      setElapsed(false);
+    };
+  }, [active, ms]);
+  return active && elapsed;
+}
+
 function StateCard() {
   const socket = useSocket<Incoming, Outgoing>();
   const state = useSocketState();
+  // The public demo server runs on a free plan that sleeps when idle, and waking it takes a while.
+  const waiting = useAfter(state === 'connecting' || state === 'reconnecting', 3000);
   return (
     <section className="card">
       <h2>Connection</h2>
@@ -94,6 +112,12 @@ function StateCard() {
       {state === 'closed' && (
         <div className="reason" data-testid="reason">
           closed: {socket.closeReason}
+        </div>
+      )}
+      {waiting && (
+        <div className="muted" data-testid="waking">
+          Still trying. The demo server runs on a free plan that sleeps when idle, and waking it can
+          take up to a minute. steady-socket keeps retrying by itself.
         </div>
       )}
     </section>

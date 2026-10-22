@@ -8,6 +8,14 @@ const origins = (process.env['ALLOWED_ORIGINS'] ?? '')
   .map((origin) => origin.trim())
   .filter((origin) => origin !== '');
 
+// A hosted server must never fall back to the open, shared playground because a variable is empty.
+if (process.env['REQUIRE_ALLOWED_ORIGINS'] === '1' && origins.length === 0) {
+  console.error(
+    'ALLOWED_ORIGINS is empty. Set it to the origin of the page that uses this server.',
+  );
+  process.exit(1);
+}
+
 const server = await startDemoServer({
   port,
   host,

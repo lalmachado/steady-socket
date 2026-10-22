@@ -9,10 +9,11 @@ RUN pnpm install --frozen-lockfile --filter @steady-socket/demo-server...
 RUN pnpm --filter @steady-socket/demo-server --prod deploy --legacy /out
 
 FROM node:22-slim
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 REQUIRE_ALLOWED_ORIGINS=1
 WORKDIR /app
 COPY --from=build /out .
 USER node
 EXPOSE 8787
-# Setting ALLOWED_ORIGINS turns on public mode (see the README). `GET /state` is a health check.
+# ALLOWED_ORIGINS turns on public mode (see the README), and this image refuses to start without it
+# (REQUIRE_ALLOWED_ORIGINS). `GET /state` is a health check.
 CMD ["node_modules/.bin/tsx", "src/main.ts"]

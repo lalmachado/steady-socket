@@ -1,0 +1,21 @@
+# Render Blueprint for the demo server (apps/demo-server) on the free plan. See DEPLOYING.md.
+services:
+  - type: web
+    name: steady-socket-demo
+    runtime: docker
+    plan: free
+    region: frankfurt
+    # The Dockerfile needs the whole pnpm workspace, so the build context is the repository root.
+    dockerfilePath: ./apps/demo-server/Dockerfile
+    dockerContext: .
+    healthCheckPath: /state
+    autoDeploy: true
+    envVars:
+      # Render sends traffic to this port. The server reads it from PORT.
+      - key: PORT
+        value: 10000
+      # The web page's origin, for example https://steady-socket-demo.vercel.app (no trailing
+      # slash). Render asks for it when the service is created. The container refuses to start
+      # without it, instead of running as an open, shared playground on the internet.
+      - key: ALLOWED_ORIGINS
+        sync: false
