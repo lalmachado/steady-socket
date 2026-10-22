@@ -175,12 +175,20 @@ async function scenarios(browser: Browser, server: DemoServer): Promise<void> {
   if ((await stateOf(page)) === 'open')
     throw new Error('The client claims to be open while the server refuses connections.');
   ok('it keeps retrying (and never claims "open") while the server refuses connections');
+  await until(
+    async () => (await page.getByTestId('waking').count()) > 0,
+    'the page to explain the wait',
+    4000,
+  );
+  ok('after a few seconds without a connection the page explains that the server may be waking up');
   const recovered = await until(
     async () => (await stateOf(page)) === 'open',
     'recovery after the restart',
     20_000,
   );
   const before = await position(page);
+  if ((await page.getByTestId('waking').count()) > 0)
+    throw new Error('The waiting hint is still shown after the connection came back.');
   await until(async () => (await position(page)) > before, 'events after the restart');
   ok(
     `recovers by itself after the restart (${String(recovered)} ms after the retry window began) and subscribes again`,

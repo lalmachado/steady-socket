@@ -1,0 +1,4 @@
+{
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm build && pnpm --filter @steady-socket/demo-web build"
+}
