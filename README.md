@@ -214,8 +214,10 @@ Because the `WebSocket` constructor can be injected, you can test code that uses
 
 `apps/demo-server` is a WebSocket server that can go silent while staying open, restart, and expire
 tokens on request. `apps/web` is a Next.js page that uses `steady-socket` against it, so you can
-break the connection and watch it recover. See the [web demo](./apps/web/README.md) and the
-[server](./apps/demo-server/README.md). A React Native demo is planned and is not built yet.
+break the connection and watch it recover. `apps/mobile` is the same screen as an Expo app, using
+`appStateLifecycle(AppState)`; CI bundles it, but nothing runs it on a device yet. See the
+[web demo](./apps/web/README.md), the [mobile demo](./apps/mobile/README.md) and the
+[server](./apps/demo-server/README.md).
 
 ![The web demo: a silent connection is detected, replaced and subscribed again](./docs/web-demo.gif)
 

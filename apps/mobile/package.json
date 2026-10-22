@@ -1,0 +1,25 @@
+{
+  "name": "@steady-socket/demo-mobile",
+  "version": "0.0.0",
+  "private": true,
+  "description": "An Expo (React Native) demo of steady-socket against the demo server.",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "typecheck": "tsc --noEmit",
+    "bundle": "expo export --platform android --output-dir .expo-export"
+  },
+  "dependencies": {
+    "expo": "~58.0.17",
+    "expo-constants": "~58.0.13",
+    "expo-status-bar": "~58.0.4",
+    "react": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-safe-area-context": "~5.10.1",
+    "steady-socket": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "~19.3.0",
+    "typescript": "~6.0.3"
+  }
+}

@@ -40,6 +40,13 @@ jobs:
       # The demo server's container image still builds (Node 22 only; the image brings its own Node).
       - run: docker build -f apps/demo-server/Dockerfile -t steady-socket-demo-server .
         if: matrix.node == 22
+      # Metro bundles the Expo app against the built package. Expo SDK 58 needs Node 22.13 or newer.
+      - run: pnpm --filter @steady-socket/demo-mobile bundle
+        if: matrix.node == 22
+        env:
+          CI: 1
+          EXPO_NO_TELEMETRY: 1
+          EXPO_OFFLINE: 1
       - run: pnpm check:package
       # size-limit itself needs Node 22 (fs.glob), and bundle size does not depend on the Node version.
       - run: pnpm size

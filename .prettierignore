@@ -5,3 +5,5 @@ pnpm-lock.yaml
 CHANGELOG.md
 .next
 next-env.d.ts
+.expo
+.expo-export

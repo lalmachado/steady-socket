@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "steady-socket demo",
+    "slug": "steady-socket-demo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "dev.steadysocket.demo"
+    },
+    "android": {
+      "package": "dev.steadysocket.demo"
+    },
+    "experiments": {
+      "tsconfigPaths": false
+    }
+  }
+}
