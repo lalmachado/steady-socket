@@ -14,6 +14,11 @@ pnpm --filter @steady-socket/demo-web dev          # terminal 2: http://localhos
 
 `NEXT_PUBLIC_DEMO_SERVER` points the page at another server (it is read when the app is built).
 
+Every page load makes up its own **session** and sends it with each call to the demo server
+(`api()` in `app/socket.ts`). Against a [public server](../demo-server/README.md#running-it-for-other-people-public-mode)
+that is what keeps your "restart" and "go silent" from reaching other visitors. Locally it changes
+nothing you would notice.
+
 ## What the page shows
 
 - **Connection**: the state from `useSocketState()`, and why a socket ended up `closed`.

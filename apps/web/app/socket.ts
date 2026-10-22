@@ -4,6 +4,24 @@ import { browserLifecycle, createSocket, type Socket } from 'steady-socket';
 export const SERVER = process.env['NEXT_PUBLIC_DEMO_SERVER'] ?? 'http://127.0.0.1:8787';
 const WS_SERVER = SERVER.replace(/^http/, 'ws');
 
+let session: string | undefined;
+/**
+ * This page's session on the demo server. A public server keeps every visitor's "break it"
+ * buttons to their own session, so each page load makes up its own (a random id, not a secret
+ * worth guarding). `crypto.randomUUID` only exists on secure origins, so this builds one by hand.
+ */
+function sessionId(): string {
+  session ??= Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
+  return session;
+}
+
+/** A URL on the demo server for this page's session. Only call it in the browser. */
+export function api(path: string): string {
+  return `${SERVER}${path}${path.includes('?') ? '&' : '?'}session=${sessionId()}`;
+}
+
 export type Incoming =
   { type: 'pong' } | { type: 'event'; topic: string; payload: { position: number } };
 
@@ -25,7 +43,7 @@ export function createDemoSocket(): DemoSocket {
   return createSocket<Incoming, Outgoing>({
     // A fresh token on every connect attempt, including every reconnect.
     url: async () => {
-      const response = await fetch(`${SERVER}/token`);
+      const response = await fetch(api('/token'));
       const { token } = (await response.json()) as { token: string };
       return `${WS_SERVER}/?token=${token}`;
     },

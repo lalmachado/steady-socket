@@ -37,6 +37,9 @@ jobs:
       - run: pnpm --filter @steady-socket/demo-web build
         env:
           NEXT_TELEMETRY_DISABLED: 1
+      # The demo server's container image still builds (Node 22 only; the image brings its own Node).
+      - run: docker build -f apps/demo-server/Dockerfile -t steady-socket-demo-server .
+        if: matrix.node == 22
       # Metro bundles the Expo app against the built package. Expo SDK 58 needs Node 22.13 or newer.
       - run: pnpm --filter @steady-socket/demo-mobile bundle
         if: matrix.node == 22
