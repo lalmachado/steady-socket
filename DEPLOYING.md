@@ -17,14 +17,18 @@ so they are forgotten when the server sleeps. That is fine for a demo.
 
 ## 1. The server on Render
 
-1. In the Render dashboard choose **New → Blueprint** and connect this repository. Render reads
-   `render.yaml` at the root and proposes one free web service (a Docker build from
-   `apps/demo-server/Dockerfile`, health check on `/state`).
+1. In the Render dashboard choose **New → Blueprint** and connect this repository. Give the
+   Blueprint a name (any unique one) and keep the branch on `main`: Render reads `render.yaml` from
+   the root of that branch, and "`render.yaml` not found" means the file is not on it. Render then
+   proposes one free web service (a Docker build from `apps/demo-server/Dockerfile`, health check
+   on `/state`).
 2. Render asks for `ALLOWED_ORIGINS`, which you do not know yet. Enter `https://placeholder.invalid`.
    The container refuses to start with an empty value, so a mistake cannot leave it open to
    everyone.
 3. Apply. The first build takes a few minutes. When it is live, open
-   `https://<service>.onrender.com/state`: you should see `{"connections":0,…}`.
+   `https://<service>.onrender.com/state`: you should see `{"connections":0,…}`. The root URL
+   answers `{"error":"session is required"}`, which is correct: public mode wants a session on
+   every call except `/state`.
 
 ## 2. The page on Vercel
 
@@ -33,7 +37,10 @@ so they are forgotten when the server sleeps. That is fine for a demo.
    The install and build commands come from `apps/web/vercel.json`.
 2. Add these environment variables:
    - `NEXT_PUBLIC_DEMO_SERVER` = `https://<service>.onrender.com`. It is read when the app is
-     built, so changing it means redeploying.
+     built, so changing it means redeploying. Its type must be **Config**, not Secret or
+     Sensitive: a `NEXT_PUBLIC_` value ends up in the page's JavaScript, so Vercel warns about it
+     and, once a variable is saved as a secret, cannot change it to Config. Delete it and add it
+     again instead.
    - `ENABLE_EXPERIMENTAL_COREPACK` = `1`, so Vercel uses the pnpm version the repository pins.
 3. Deploy. You get `https://<project>.vercel.app`.
 

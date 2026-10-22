@@ -212,6 +212,11 @@ Because the `WebSocket` constructor can be injected, you can test code that uses
 
 ## Demo
 
+**[Try the web demo](https://steady-socket.vercel.app)**: press the buttons that break the
+connection and watch it recover. The server behind it runs on a free plan that sleeps when idle, so
+the first visit can take up to a minute to connect; the page says so and `steady-socket` keeps
+retrying until the server answers. Each visitor's buttons only affect their own connection.
+
 `apps/demo-server` is a WebSocket server that can go silent while staying open, restart, and expire
 tokens on request. `apps/web` is a Next.js page that uses `steady-socket` against it, so you can
 break the connection and watch it recover. `apps/mobile` is the same screen as an Expo app, using
