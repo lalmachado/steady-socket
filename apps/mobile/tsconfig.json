@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
+    "paths": {
+      "steady-socket": ["../../src/index.ts"],
+      "steady-socket/react": ["../../src/react/index.ts"],
+      "steady-socket/react-native": ["../../src/react-native/index.ts"]
+    }
+  },
+  "include": ["index.ts", "src"]
+}
