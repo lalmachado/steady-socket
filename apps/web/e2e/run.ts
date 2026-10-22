@@ -69,7 +69,7 @@ async function until(
 
 const text = (page: Page, testId: string) => page.getByTestId(testId).innerText();
 const stateOf = (page: Page) => text(page, 'state');
-const position = async (page: Page) => Number(await text(page, 'position'));
+const score = async (page: Page) => Number(await text(page, 'score'));
 
 async function startNext(mode: 'start' | 'dev', port: number): Promise<ChildProcess> {
   const child = spawn('pnpm', ['exec', 'next', mode, '-p', String(port)], {
@@ -132,11 +132,11 @@ async function scenarios(browser: Browser, server: DemoServer): Promise<void> {
   await until(async () => (await stateOf(page)) === 'open', 'the state to become open');
   ok('connects and reaches "open"');
 
-  await until(async () => (await position(page)) > 0, 'the first event');
-  const first = await position(page);
-  await until(async () => (await position(page)) > first, 'the position to advance');
+  await until(async () => (await score(page)) > 0, 'the first event');
+  const first = await score(page);
+  await until(async () => (await score(page)) > first, 'the score to advance');
   ok('the subscription delivers events');
-  if (server.state().connections !== 1 || server.state().topics['bed:42'] !== 1)
+  if (server.state().connections !== 1 || server.state().topics['match:42'] !== 1)
     throw new Error('Expected one connection and one listener.');
   ok('the server sees one connection with one listener');
   await pause(2500);
@@ -152,11 +152,11 @@ async function scenarios(browser: Browser, server: DemoServer): Promise<void> {
   await pause(4000);
   await page.getByRole('button', { name: 'Answer again' }).click();
   await until(async () => (await stateOf(page)) === 'open', 'the state to become open again');
-  const afterSilent = await position(page);
-  await until(async () => (await position(page)) > afterSilent, 'events to flow again');
+  const afterSilent = await score(page);
+  await until(async () => (await score(page)) > afterSilent, 'events to flow again');
   ok('recovers when the server answers again, and the topic is subscribed again');
   await until(
-    () => server.state().connections === 1 && server.state().topics['bed:42'] === 1,
+    () => server.state().connections === 1 && server.state().topics['match:42'] === 1,
     'exactly one listener',
     5000,
   );
@@ -186,10 +186,10 @@ async function scenarios(browser: Browser, server: DemoServer): Promise<void> {
     'recovery after the restart',
     20_000,
   );
-  const before = await position(page);
+  const before = await score(page);
   if ((await page.getByTestId('waking').count()) > 0)
     throw new Error('The waiting hint is still shown after the connection came back.');
-  await until(async () => (await position(page)) > before, 'events after the restart');
+  await until(async () => (await score(page)) > before, 'events after the restart');
   ok(
     `recovers by itself after the restart (${String(recovered)} ms after the retry window began) and subscribes again`,
   );
@@ -209,7 +209,7 @@ async function scenarios(browser: Browser, server: DemoServer): Promise<void> {
   await page.getByRole('button', { name: 'Sign in again' }).click();
   await until(async () => (await stateOf(page)) === 'open', 'the new socket to open');
   await until(
-    () => server.state().connections === 1 && server.state().topics['bed:42'] === 1,
+    () => server.state().connections === 1 && server.state().topics['match:42'] === 1,
     'one connection, one listener',
     5000,
   );
@@ -253,7 +253,7 @@ async function isolation(browser: Browser, server: DemoServer): Promise<void> {
   const two = await openPage(browser, PROD_PORT);
   for (const { page } of [one, two]) {
     await until(async () => (await stateOf(page)) === 'open', 'the state to become open');
-    await until(async () => (await position(page)) > 0, 'the first event');
+    await until(async () => (await score(page)) > 0, 'the first event');
   }
   await until(() => server.state().connections === 2, 'two connections');
   ok('two pages are two sessions: the server sees two connections');
@@ -261,17 +261,17 @@ async function isolation(browser: Browser, server: DemoServer): Promise<void> {
   // Visitor one restarts "the server", and then makes their connection go silent.
   await one.page.getByRole('button', { name: 'Restart server (5 s)' }).click();
   await until(async () => (await stateOf(one.page)) === 'reconnecting', 'visitor one to notice');
-  const before = await position(two.page);
+  const before = await score(two.page);
   await sleep(2500);
   if ((await stateOf(two.page)) !== 'open') throw new Error('The restart reached the other page.');
-  await until(async () => (await position(two.page)) > before, 'events for visitor two');
+  await until(async () => (await score(two.page)) > before, 'events for visitor two');
   ok("one visitor's server restart does not touch the other visitor");
   await until(async () => (await stateOf(one.page)) === 'open', 'visitor one to recover', 20_000);
 
   await one.page.getByRole('button', { name: 'Go silent (dead connection)' }).click();
   await until(async () => (await stateOf(one.page)) !== 'open', 'the heartbeat to notice', 8000);
-  const during = await position(two.page);
-  await until(async () => (await position(two.page)) > during, 'events for visitor two');
+  const during = await score(two.page);
+  await until(async () => (await score(two.page)) > during, 'events for visitor two');
   if ((await stateOf(two.page)) !== 'open') throw new Error('The silence reached the other page.');
   ok("and one visitor's dead connection does not touch the other either");
 
@@ -289,9 +289,9 @@ async function strictMode(browser: Browser, server: DemoServer): Promise<void> {
   await until(async () => (await stateOf(page)) === 'open', 'the state to become open', 30_000);
   await sleep(1500);
   const { connections, topics } = server.state();
-  if (connections !== 1 || topics['bed:42'] !== 1) {
+  if (connections !== 1 || topics['match:42'] !== 1) {
     throw new Error(
-      `Strict Mode left ${String(connections)} connections and ${String(topics['bed:42'] ?? 0)} listeners (expected 1 and 1).`,
+      `Strict Mode left ${String(connections)} connections and ${String(topics['match:42'] ?? 0)} listeners (expected 1 and 1).`,
     );
   }
   ok('Strict Mode double-running the effect leaves exactly one live socket and one listener');

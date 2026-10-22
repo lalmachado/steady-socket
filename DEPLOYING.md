@@ -55,7 +55,7 @@ Vercel preview deployments have their own URLs and are **not** allowed unless yo
 ## 4. Check it
 
 - Open the page. If the server was asleep, the state shows `connecting` or `reconnecting` and then
-  the waiting hint; give it a minute. Then it should reach `open` and the position should count up.
+  the waiting hint; give it a minute. Then it should reach `open` and the score should count up.
 - Press the buttons in "Break it". Open the page in a second tab: its connection should not be
   affected by the first one's buttons.
 - A page from anywhere else must be refused:
