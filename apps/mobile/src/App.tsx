@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SocketProvider, useSocketState, useSubscription } from 'steady-socket/react';
-import { createDemoSocket, SERVER, type DemoSocket, type Incoming } from './socket';
+import { api, createDemoSocket, SERVER, type DemoSocket, type Incoming } from './socket';
 
 interface LogEntry {
   id: number;
@@ -142,7 +142,7 @@ function Controls({
 
   const call = (path: string, label: string) => () => {
     note(`you: ${label}`);
-    fetch(`${SERVER}${path}`, { method: 'POST' }).catch(() => {
+    fetch(api(path), { method: 'POST' }).catch(() => {
       note('the demo server is not reachable');
     });
   };

@@ -19,6 +19,20 @@ export const SERVER =
     : `http://${devHost ?? '127.0.0.1'}:8787`;
 const WS_SERVER = SERVER.replace(/^http/, 'ws');
 
+/**
+ * This app launch's session on the demo server. A public server keeps every visitor's "break it"
+ * buttons to their own session, so each launch makes up its own id. It is not a secret worth
+ * guarding, so `Math.random` is enough (React Native has no `crypto.getRandomValues` built in).
+ */
+const session = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join(
+  '',
+);
+
+/** A URL on the demo server for this launch's session. */
+export function api(path: string): string {
+  return `${SERVER}${path}${path.includes('?') ? '&' : '?'}session=${session}`;
+}
+
 export type Incoming =
   { type: 'pong' } | { type: 'event'; topic: string; payload: { position: number } };
 
@@ -40,7 +54,7 @@ export function createDemoSocket(): DemoSocket {
   return createSocket<Incoming, Outgoing>({
     // A fresh token on every connect attempt, including every reconnect.
     url: async () => {
-      const response = await fetch(`${SERVER}/token`);
+      const response = await fetch(api('/token'));
       const { token } = (await response.json()) as { token: string };
       return `${WS_SERVER}/?token=${token}`;
     },
