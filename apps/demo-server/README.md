@@ -89,7 +89,8 @@ docker build -f apps/demo-server/Dockerfile -t steady-socket-demo-server .
 docker run --rm -p 8787:8787 -e ALLOWED_ORIGINS=https://your-demo-site.example steady-socket-demo-server
 ```
 
-Any host that runs a container works. The host must serve it over HTTPS (so clients can use
+[DEPLOYING.md](../../DEPLOYING.md) has the steps for Fly.io (`fly.toml` at the repository root) and
+Vercel. Any host that runs a container works. The host must serve it over HTTPS (so clients can use
 `wss://`) and must allow long-lived WebSocket connections. Use `GET /state` as the health check.
 
 ## Tests
