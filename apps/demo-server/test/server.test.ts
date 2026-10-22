@@ -58,9 +58,9 @@ describe('tokens and auth', () => {
     const c = connect();
     await c.opened;
     c.send({ type: 'auth', token: await token() });
-    c.send({ type: 'subscribe', topic: 'bed:42' });
+    c.send({ type: 'subscribe', topic: 'match:42' });
     await until(
-      () => c.received.some((m) => m.type === 'event' && m.topic === 'bed:42'),
+      () => c.received.some((m) => m.type === 'event' && m.topic === 'match:42'),
       'an event',
     );
     c.ws.close();
@@ -189,8 +189,8 @@ describe('state and unknown routes', () => {
   it('reports connections and topics', async () => {
     const c = connect(`?token=${await token()}`);
     await c.opened;
-    c.send({ type: 'subscribe', topic: 'bed:42' });
-    await until(() => server.state().topics['bed:42'] === 1, 'the topic to register');
+    c.send({ type: 'subscribe', topic: 'match:42' });
+    await until(() => server.state().topics['match:42'] === 1, 'the topic to register');
     const res = await fetch(`http://${base}/state`);
     expect(await res.json()).toMatchObject({ connections: 1, silent: false, down: false });
     c.ws.close();

@@ -22,7 +22,7 @@ nothing you would notice.
 ## What the page shows
 
 - **Connection**: the state from `useSocketState()`, and why a socket ended up `closed`.
-- **Bed 42 position**: events from `useSubscription()`. The topic is subscribed again by the
+- **Match 42 score**: events from `useSubscription()`. The topic is subscribed again by the
   library after every reconnect, and the page does nothing about it.
 - **Break it**: the demo server's controls. _Go silent_ is a connection that stays open but
   delivers nothing, which only the heartbeat can catch. _Restart server_ refuses connections for 5

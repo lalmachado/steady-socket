@@ -16,14 +16,14 @@ pnpm --filter @steady-socket/demo-server start
 
 JSON messages, the same ones the main README's examples use:
 
-| Direction        | Message                                                                |
-| ---------------- | ---------------------------------------------------------------------- |
-| client to server | `{ "type": "auth", "token": "…" }`                                     |
-| client to server | `{ "type": "subscribe", "topic": "bed:42" }`                           |
-| client to server | `{ "type": "unsubscribe", "topic": "bed:42" }`                         |
-| client to server | `{ "type": "ping" }`                                                   |
-| server to client | `{ "type": "pong" }`                                                   |
-| server to client | `{ "type": "event", "topic": "bed:42", "payload": { "position": 7 } }` |
+| Direction        | Message                                                               |
+| ---------------- | --------------------------------------------------------------------- |
+| client to server | `{ "type": "auth", "token": "…" }`                                    |
+| client to server | `{ "type": "subscribe", "topic": "match:42" }`                        |
+| client to server | `{ "type": "unsubscribe", "topic": "match:42" }`                      |
+| client to server | `{ "type": "ping" }`                                                  |
+| server to client | `{ "type": "pong" }`                                                  |
+| server to client | `{ "type": "event", "topic": "match:42", "payload": { "score": 7 } }` |
 
 A connection has to authenticate before it subscribes, either with `?token=` in the URL or with an
 `auth` message. Subscribing first closes the connection with code **4401**, which is what makes the

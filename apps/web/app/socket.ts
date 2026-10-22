@@ -23,7 +23,7 @@ export function api(path: string): string {
 }
 
 export type Incoming =
-  { type: 'pong' } | { type: 'event'; topic: string; payload: { position: number } };
+  { type: 'pong' } | { type: 'event'; topic: string; payload: { score: number } };
 
 export type Outgoing =
   | { type: 'ping' }

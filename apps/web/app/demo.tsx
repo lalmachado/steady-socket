@@ -55,7 +55,7 @@ export function Demo() {
     <SocketProvider socket={socket}>
       <div className="grid">
         <StateCard />
-        <PositionCard />
+        <ScoreCard />
       </div>
       <Controls
         onSignInAgain={() => {
@@ -124,15 +124,15 @@ function StateCard() {
   );
 }
 
-function PositionCard() {
-  const [position, setPosition] = useState<number>();
+function ScoreCard() {
+  const [score, setScore] = useState<number>();
   const [updatedAt, setUpdatedAt] = useState<number>();
   const [now, setNow] = useState(() => Date.now());
 
   // The topic is subscribed on mount and again, by the library, after every reconnect.
-  useSubscription<Incoming>('bed:42', (message) => {
+  useSubscription<Incoming>('match:42', (message) => {
     if (message.type !== 'event') return;
-    setPosition(message.payload.position);
+    setScore(message.payload.score);
     setUpdatedAt(Date.now());
   });
 
@@ -149,9 +149,9 @@ function PositionCard() {
     updatedAt === undefined ? undefined : Math.max(0, Math.round((now - updatedAt) / 1000));
   return (
     <section className="card">
-      <h2>Bed 42 position</h2>
-      <div className="big" data-testid="position">
-        {position ?? '–'}
+      <h2>Match 42 score</h2>
+      <div className="big" data-testid="score">
+        {score ?? '–'}
       </div>
       <div className="muted">
         {age === undefined ? 'waiting for the first event' : `updated ${String(age)} s ago`}
@@ -181,6 +181,10 @@ function Controls({
   return (
     <section className="card" style={{ marginBottom: 16 }}>
       <h2>Break it</h2>
+      <p className="muted">
+        <em>Go silent</em>: the connection stays open but nothing arrives. <em>Restart server</em>:
+        new connections are refused for 5 seconds. <em>Expire tokens</em>: the login stops working.
+      </p>
       <div className="buttons">
         <button onClick={() => void call('/control/silent', 'server goes silent')()}>
           Go silent (dead connection)
@@ -247,8 +251,8 @@ function ServerCard() {
           <dd>{String(server.silent)}</dd>
           <dt>refusing connections</dt>
           <dd>{String(server.down)}</dd>
-          <dt>listeners on bed:42</dt>
-          <dd data-testid="server-listeners">{server.topics['bed:42'] ?? 0}</dd>
+          <dt>listeners on match:42</dt>
+          <dd data-testid="server-listeners">{server.topics['match:42'] ?? 0}</dd>
         </dl>
       )}
     </section>

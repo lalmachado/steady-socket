@@ -77,7 +77,7 @@ export function App() {
         {socket ? (
           <SocketProvider socket={socket}>
             <Connection colors={colors} />
-            <Position colors={colors} />
+            <MatchScore colors={colors} />
             <Controls
               colors={colors}
               note={note}
@@ -114,17 +114,17 @@ function Connection({ colors }: { colors: Palette }) {
   );
 }
 
-function Position({ colors }: { colors: Palette }) {
-  const [position, setPosition] = useState<number>();
+function MatchScore({ colors }: { colors: Palette }) {
+  const [score, setScore] = useState<number>();
 
   // The topic is subscribed on mount and again, by the library, after every reconnect.
-  useSubscription<Incoming>('bed:42', (message) => {
-    if (message.type === 'event') setPosition(message.payload.position);
+  useSubscription<Incoming>('match:42', (message) => {
+    if (message.type === 'event') setScore(message.payload.score);
   });
 
   return (
-    <Card colors={colors} title="Bed 42 position">
-      <Text style={[styles.big, { color: colors.text }]}>{position ?? '–'}</Text>
+    <Card colors={colors} title="Match 42 score">
+      <Text style={[styles.big, { color: colors.text }]}>{score ?? '–'}</Text>
     </Card>
   );
 }

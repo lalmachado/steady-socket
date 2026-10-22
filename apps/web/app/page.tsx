@@ -7,9 +7,13 @@ export default function Page() {
     <main>
       <h1>steady-socket</h1>
       <p>
-        A WebSocket client that stays connected. Break the connection below and watch it recover.
-        The server is <code>apps/demo-server</code>, started with{' '}
-        <code>pnpm --filter @steady-socket/demo-server start</code>.
+        A WebSocket client that stays connected. This page follows the score of a pretend match that
+        a demo server updates every second. Break the connection with the buttons below and watch
+        steady-socket notice, reconnect and subscribe again by itself.
+      </p>
+      <p>
+        <a href="https://github.com/lalmachado/steady-socket">Source and docs on GitHub</a> ·{' '}
+        <a href="https://www.npmjs.com/package/steady-socket">npm</a>
       </p>
       <Demo />
     </main>
