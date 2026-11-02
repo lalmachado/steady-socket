@@ -18,7 +18,7 @@ A thin React layer sits on top and runs unchanged in Next.js and Expo.
 
 **At a glance**
 
-- **About 1.5 kB** minified and gzipped for the core, plus 0.3 kB for the React hooks (CI fails if the core grows past 3 kB).
+- **About 1.6 kB** minified and gzipped for the core, plus 0.4 kB for the React hooks (CI fails if the core grows past 3 kB).
 - **No dependencies** in the core. `react` is an optional peer dependency.
 - **Strict TypeScript**, ESM and CJS, published with [npm provenance](https://docs.npmjs.com/generating-provenance-statements).
 - **Tested** with fake timers for every state transition, and against a real WebSocket server that goes silent, restarts and expires logins.
@@ -54,7 +54,7 @@ Read from each library's published code (versions below), not from memory or mar
 | Reacts to the app or network waking up    | yes: web events, React Native `AppState` | no              | no                         | no                                         | partly: closes on the browser's `offline`          |
 | Queues sends while offline                | opt-in                                   | yes             | yes                        | yes                                        | yes                                                |
 | React hooks                               | yes                                      | yes             | no                         | yes (it is the library)                    | no                                                 |
-| Size, minified and gzipped                | 1.5 kB (+0.3 kB React)                   | 2.7 kB          | 3.2 kB                     | 6.8 kB                                     | 13.0 kB                                            |
+| Size, minified and gzipped                | 1.6 kB (+0.4 kB React)                   | 2.7 kB          | 3.2 kB                     | 6.8 kB                                     | 13.0 kB                                            |
 | Last release                              | Oct 2026, 0.x                            | Jun 2026        | Feb 2020                   | Feb 2025                                   | Sep 2026                                           |
 
 **Where the others are better.**
@@ -275,19 +275,33 @@ With `heartbeat` set, a pong that does not arrive within `timeout` closes the so
 
 ## Options
 
-| Option                | Default | What it does                                                                                                                                                                                     |
-| --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `url`                 | —       | A string, or a sync or async function called on every connect.                                                                                                                                   |
-| `protocols`           | —       | Passed through to `WebSocket`.                                                                                                                                                                   |
-| `heartbeat`           | off     | `interval`, `timeout`, `ping()`, `isPong(msg)`.                                                                                                                                                  |
-| `reconnect`           | on      | `minDelay` (500), `maxDelay` (30 000), `factor` (2), `jitter` (`'full'` or `'none'`, default `'full'`), `maxAttempts` (default: no limit), `random` (for tests). `false` turns reconnecting off. |
-| `queueWhileOffline`   | off     | Max number of messages `send()` buffers while the socket is not open. Without it, `send()` throws when not open.                                                                                 |
-| `subscriptions`       | off     | `subscribe(topic)`, `unsubscribe(topic)`, `topicOf(msg)`.                                                                                                                                        |
-| `onOpen`              | —       | Async hook before subscriptions are replayed.                                                                                                                                                    |
-| `isAuthFailure`       | —       | Close events that should stop reconnecting.                                                                                                                                                      |
-| `lifecycle`           | —       | `browserLifecycle()` or `appStateLifecycle(AppState)`: pauses and wakes the socket from environment events.                                                                                      |
-| `serialize` / `parse` | JSON    | Message encoding.                                                                                                                                                                                |
-| `WebSocket`           | global  | The constructor to use. Pass `ws` in Node, or a fake in tests.                                                                                                                                   |
+| Option                | Default  | What it does                                                                                                                                                                                     |
+| --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `url`                 | —        | A string, or a sync or async function called on every connect.                                                                                                                                   |
+| `protocols`           | —        | Passed through to `WebSocket`.                                                                                                                                                                   |
+| `heartbeat`           | off      | `interval`, `timeout`, `ping()`, `isPong(msg)`.                                                                                                                                                  |
+| `reconnect`           | on       | `minDelay` (500), `maxDelay` (30 000), `factor` (2), `jitter` (`'full'` or `'none'`, default `'full'`), `maxAttempts` (default: no limit), `random` (for tests). `false` turns reconnecting off. |
+| `queueWhileOffline`   | off      | Max number of messages `send()` buffers while the socket is not open. Without it, `send()` throws when not open.                                                                                 |
+| `subscriptions`       | off      | `subscribe(topic)`, `unsubscribe(topic)`, `topicOf(msg)`.                                                                                                                                        |
+| `onOpen`              | —        | Async hook before subscriptions are replayed.                                                                                                                                                    |
+| `isAuthFailure`       | —        | Close events that should stop reconnecting.                                                                                                                                                      |
+| `lifecycle`           | —        | `browserLifecycle()` or `appStateLifecycle(AppState)`: pauses and wakes the socket from environment events.                                                                                      |
+| `onError`             | rethrown | Called when a message cannot be parsed, or one of your handlers, listeners, `isPong` or `topicOf` throws. The socket carries on.                                                                 |
+| `serialize` / `parse` | JSON     | Message encoding.                                                                                                                                                                                |
+| `WebSocket`           | global   | The constructor to use. Pass `ws` in Node, or a fake in tests.                                                                                                                                   |
+
+## When your code throws
+
+A message that `parse` cannot read, or a handler, `onMessage` or `onState` listener, `isPong` or `topicOf` that throws, never breaks the connection: the other listeners still get the message, and so does the next one. Pass `onError` to see these errors:
+
+```ts
+createSocket({
+  // …
+  onError: (error) => reportToYourErrorTracker(error),
+});
+```
+
+Without it, the error is rethrown from a timer, so it still shows up as an uncaught error (like a DOM event listener that throws) and is not swallowed. In Node with `ws`, that means the process sees it, so pass `onError` if a malformed message from a server should not be fatal.
 
 ## Testing your app
 

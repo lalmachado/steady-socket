@@ -102,6 +102,14 @@ export interface SocketOptions<Incoming, Outgoing> {
   isAuthFailure?: (event: CloseInfo) => boolean;
   /** `browserLifecycle()` on the web, `appStateLifecycle(AppState)` in React Native. */
   lifecycle?: Lifecycle;
+  /**
+   * Called when something you gave the socket fails without the connection being at fault: a
+   * message that `parse` cannot read, or a handler, state listener, `isPong` or `topicOf` that
+   * throws. The socket carries on: the message still reaches every other listener, and the next one
+   * arrives as usual. Without this option the error is rethrown from a timer, so it still shows up
+   * as an uncaught error (as the DOM does for an event listener that throws) instead of vanishing.
+   */
+  onError?: (error: unknown) => void;
   serialize?: (message: Outgoing) => string;
   parse?: (data: unknown) => Incoming;
   /** The `WebSocket` constructor to use. Defaults to the global one. */
