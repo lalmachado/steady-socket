@@ -35,6 +35,11 @@ Releases are automated with [Changesets](https://github.com/changesets/changeset
   `package.json` and the repo lacks its tag or release, so it also catches up a release that was
   missed. It tags the commit that set the version, not necessarily `HEAD`. To re-run it without a
   new commit, use **Run workflow** on the Release workflow in the Actions tab.
+- **npm can take a minute or more to show a version that was just published.** For `0.1.2` the
+  script gave up after 30 s and the run was green but had no tag, so it now waits up to 4 minutes
+  (`REGISTRY_RETRIES` times `REGISTRY_RETRY_SECONDS`), and if the version still is not there it
+  prints a **warning annotation** on the run. A green run with that warning means "not tagged yet":
+  the next push to `main` does it, or use **Run workflow**.
 - **npm held the first publish for approval** ("staged publishing"), because the package was new.
   `0.1.1`, published by the trusted publisher, was not held. If a release run is green but the new
   version is missing on npm, look for a pending release on npmjs.com and approve it; the tag and
