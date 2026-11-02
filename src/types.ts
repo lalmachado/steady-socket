@@ -28,6 +28,13 @@ export interface ReconnectOptions {
   jitter?: 'full' | 'none';
   /** Give up and go to `closed` after this many consecutive failed attempts. Default: never. */
   maxAttempts?: number;
+  /**
+   * A connection only counts as a success, and resets the backoff, once it has stayed open this long,
+   * in ms. A server that accepts connections and drops them at once is otherwise retried at the
+   * shortest delay for ever. A connection that drops sooner counts as a failed attempt, also towards
+   * `maxAttempts`. Default 5000; `0` resets as soon as the connection opens.
+   */
+  minUptime?: number;
   /** Returns a number in [0, 1). Replace it in tests to make jitter deterministic. Default `Math.random`. */
   random?: () => number;
 }

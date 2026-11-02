@@ -121,7 +121,7 @@ describe('url', () => {
 });
 
 describe('backoff', () => {
-  it('waits longer after each consecutive failure and resets after a successful open', async () => {
+  it('waits longer after each consecutive failure and resets once a connection has stayed up', async () => {
     const { socket } = setup();
     socket.connect();
     await vi.advanceTimersByTimeAsync(0);
@@ -138,6 +138,7 @@ describe('backoff', () => {
     expect(FakeWebSocket.instances).toHaveLength(3);
 
     FakeWebSocket.last.open();
+    await vi.advanceTimersByTimeAsync(5000); // up for `minUptime`: a success
     FakeWebSocket.last.serverClose();
     await vi.advanceTimersByTimeAsync(1000);
     expect(FakeWebSocket.instances).toHaveLength(4);

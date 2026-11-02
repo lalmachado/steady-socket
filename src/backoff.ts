@@ -11,6 +11,7 @@ export function resolveReconnect(options: ReconnectOptions = {}): ResolvedReconn
     factor: options.factor ?? 2,
     jitter: options.jitter ?? 'full',
     maxAttempts: options.maxAttempts ?? Infinity,
+    minUptime: options.minUptime ?? 5000,
     random: options.random ?? Math.random,
   };
 }

@@ -35,6 +35,7 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let pingTimer: ReturnType<typeof setInterval> | undefined;
   let pongTimer: ReturnType<typeof setTimeout> | undefined;
+  let uptimeTimer: ReturnType<typeof setTimeout> | undefined;
   let paused = false;
   let pingNow: (() => void) | undefined;
   let detachLifecycle: (() => void) | undefined;
@@ -151,7 +152,15 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
       }
       if (mine !== generation) return;
     }
-    failedAttempts = 0;
+    // The connection counts as a success (and the backoff starts over) only once it has stayed up
+    // for `minUptime`. Resetting on `open` alone would retry a server that accepts connections and
+    // drops them at once at the shortest delay for ever.
+    if (!reconnect || reconnect.minUptime <= 0) failedAttempts = 0;
+    else {
+      uptimeTimer = setTimeout(() => {
+        if (mine === generation) failedAttempts = 0;
+      }, reconnect.minUptime);
+    }
     // Everything goes out before `open` is announced, so a state listener that calls send() or
     // subscribe() cannot jump ahead of replay or the queue (or be replayed twice).
     // Order: onOpen (auth) → replayed subscriptions → messages queued while offline.
@@ -179,7 +188,10 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
     pingTimer = setInterval(pingNow, heartbeat.interval);
   }
 
+  /** Stops the timers that belong to one connection: the heartbeat and the uptime check. */
   function stopHeartbeat(): void {
+    clearTimeout(uptimeTimer);
+    uptimeTimer = undefined;
     clearInterval(pingTimer);
     clearTimeout(pongTimer);
     pingTimer = undefined;
