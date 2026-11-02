@@ -86,6 +86,14 @@ is the simplest one with a good spread.
 **Cost.** A retry can come almost immediately (the delay can be close to 0), and the median wait is
 half the ceiling.
 
+**A connection has to stay up before it counts as a success.** The delays only start over once a
+connection has stayed open for `minUptime` (5000 ms by default); one that drops sooner counts as a
+failed attempt, also towards `maxAttempts`. Resetting the moment a connection opens is the obvious
+version, and it has a bad failure: against a server that accepts every connection and closes it at
+once (a crash loop, an overloaded proxy), a client with default settings reconnected 18 to 20 times
+in 5 seconds, for ever. With `minUptime` the same test makes 5 connections in 5 seconds and the
+delay keeps growing. `partysocket` has the same option. `minUptime: 0` gives the old behaviour.
+
 **Waking skips the wait.** `wake()` (the page became visible, the network is back, a React Native
 app became active) connects now if the socket is `reconnecting`, and pings now if it is `open`. It
 does not reset the attempt counter, so a wake-up that fails keeps climbing the ladder.
@@ -184,7 +192,7 @@ starving the others.
 `createSocket` throws.
 
 **Why.** Passing `ws` in Node and a fake in tests needs no mocking library, and the published
-package stays at about 1.6 kB (core) plus 0.4 kB (React hooks) minified and gzipped.
+package stays at about 1.7 kB (core) plus 0.4 kB (React hooks) minified and gzipped.
 
 **Cost.** On Node 20 there is no global `WebSocket`, so creating a socket at module level in
 server-rendered code throws; see "Known weaknesses".
@@ -202,11 +210,6 @@ grows past 3 kB.
 
 These are real, and most of them are on the roadmap or would be a small change.
 
-- **A server that accepts and immediately drops connections is not backed off.** The attempt counter
-  resets as soon as a connection opens, so against a server that accepts every connection and closes
-  it at once, a client with default settings reconnected 18 times in 5 seconds (measured), about
-  once every 300 ms, for ever. `partysocket` has a `minUptime` option for this; the fix here would be
-  to reset the counter only after the connection has stayed open for a while.
 - **Creating the socket inside an effect, and a final `close()`, are awkward in React.** A
   reopenable socket would remove the pattern, but also the simplicity of section 1.
 - **Liveness is judged by pongs only** (section 3), so the heartbeat is unusable with a server that
@@ -240,6 +243,9 @@ with a good spread, and `random` is injectable for tests.
 
 **What happens to messages sent while the connection was dropping?** Nothing: delivery is at most
 once. Only subscriptions and messages queued with `queueWhileOffline` are sent again.
+
+**What if the server accepts connections and drops them straight away?** The backoff keeps growing,
+because a connection only resets it after `minUptime` (section 4).
 
 **What if the server rejects the login?** If `isAuthFailure` matches the close code, the socket goes
 to `closed` with `auth-failure` and stops; otherwise it keeps retrying with a fresh token each time.
