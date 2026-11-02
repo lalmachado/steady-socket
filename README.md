@@ -14,7 +14,15 @@ That connection breaks more often than you would expect. The Wi-Fi drops, a phon
 
 `steady-socket` wraps the platform `WebSocket` with the parts every real-time app ends up rewriting: heartbeats that catch dead connections, reconnects with backoff and jitter, fresh auth on every reconnect, subscriptions that come back by themselves, and awareness of when a mobile app goes to the background.
 
-The core is plain TypeScript with no dependencies. A thin React layer sits on top and runs unchanged in Next.js and Expo.
+A thin React layer sits on top and runs unchanged in Next.js and Expo.
+
+**At a glance**
+
+- **About 1.5 kB** minified and gzipped for the core, plus 0.3 kB for the React hooks (CI fails if the core grows past 3 kB).
+- **No dependencies** in the core. `react` is an optional peer dependency.
+- **Strict TypeScript**, ESM and CJS, published with [npm provenance](https://docs.npmjs.com/generating-provenance-statements).
+- **Tested** with fake timers for every state transition, and against a real WebSocket server that goes silent, restarts and expires logins.
+- **22 lines** of setup, against 141 for the same behaviour written by hand ([see below](#what-writing-it-by-hand-involves)).
 
 > **Status:** early release (0.x). The API is complete for what is described below and is covered by tests, but it may still change in minor versions until 1.0. Changes are listed in [CHANGELOG.md](./CHANGELOG.md); the plan is in [ROADMAP.md](./ROADMAP.md).
 
@@ -57,6 +65,46 @@ Read from each library's published code (versions below), not from memory or mar
 - **`steady-socket` is new** (0.x): it has few users so far, and its API may change before 1.0.
 
 [How each cell was checked](./docs/comparison.md): versions as published on npm on the day of writing; features read from each package's source and types (`reconnecting-websocket` has had no release since 2020); sizes are the main entry bundled with esbuild, minified and gzipped with React external, the same way for every library. They compare what you ship, not how much each library does.
+
+## What writing it by hand involves
+
+None of this is magic, and you can write it yourself. [`examples/hand-written.ts`](./examples/hand-written.ts) is a careful version for a plain WebSocket: backoff with jitter, a fresh token on every connection, a heartbeat, subscriptions sent again after every reconnect, a stop on close code 4401, and a wake-up when the page comes back. It is **141 lines of code** and it passes the same four scenarios as the library against the demo server: a connection that goes silent, a server restart, an expired login, and subscriptions after a reconnect ([the tests](./apps/demo-server/test/hand-written.test.ts)).
+
+[`examples/with-steady-socket.ts`](./examples/with-steady-socket.ts) is the same behaviour with the library, **22 lines**:
+
+```ts
+import { browserLifecycle, createSocket } from 'steady-socket';
+
+type Incoming = { type: 'pong' } | { type: 'event'; topic: string; payload: unknown };
+type Outgoing = { type: 'ping' } | { type: 'subscribe' | 'unsubscribe'; topic: string };
+
+export function createLibrarySocket(options: { url: string; getToken: () => Promise<string> }) {
+  return createSocket<Incoming, Outgoing>({
+    url: async () => `${options.url}/?token=${await options.getToken()}`,
+    heartbeat: {
+      interval: 15_000,
+      timeout: 5_000,
+      ping: () => ({ type: 'ping' }),
+      isPong: (message) => message.type === 'pong',
+    },
+    reconnect: { minDelay: 500, maxDelay: 30_000, factor: 2, jitter: 'full' },
+    subscriptions: {
+      subscribe: (topic) => ({ type: 'subscribe', topic }),
+      unsubscribe: (topic) => ({ type: 'unsubscribe', topic }),
+      topicOf: (message) => (message.type === 'event' ? message.topic : undefined),
+    },
+    isAuthFailure: (event) => event.code === 4401,
+    lifecycle: browserLifecycle(),
+  });
+}
+```
+
+The line count is not the point. The details are: writing the hand-made version turned up each of these.
+
+- **A dead socket may never say it is dead.** A connection that went quiet may not emit `close` for a long time, or ever, so the heartbeat has to give up on it without waiting for the event, and ignore it if it does arrive late.
+- **A late `close` from an old socket must not start a second reconnect**, and closing while a token is still being fetched must not open a socket afterwards.
+- **`ws` in Node throws if nobody listens for `error`.** The first draft of the hand-written file crashed the test process when the server refused a reconnect during a restart. Browsers do not do this, so it only shows up in Node.
+- **Not covered by the hand-written version:** an observable state and close reason, `send` with an offline queue, React hooks, the React Native lifecycle, typed messages, and a test suite. The library has fake-timer tests of every transition, which is what keeps the cases above fixed.
 
 ## Install
 

@@ -14,7 +14,8 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "skipLibCheck": true,
+    "paths": { "steady-socket": ["./src/index.ts"] },
     "noEmit": true
   },
-  "include": ["src", "test", "tsup.config.ts", "vitest.config.ts", "eslint.config.js"]
+  "include": ["src", "test", "examples", "tsup.config.ts", "vitest.config.ts", "eslint.config.js"]
 }
