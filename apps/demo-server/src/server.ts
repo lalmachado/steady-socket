@@ -7,8 +7,15 @@ export interface DemoServerOptions {
   port?: number;
   /** Default `127.0.0.1`: the demo has no real security, so it only listens locally unless told to. */
   host?: string;
-  /** How long a token lives, in ms. Default 60 000. */
+  /** How long a token can be used to connect, in ms. Default 60 000. */
   tokenTtlMs?: number;
+  /**
+   * How long an authenticated connection lasts before the server ends it with 4401, as a session
+   * that ran out would, in ms. Default 1 800 000 (30 minutes). It does not depend on the token: a
+   * token only has to be valid at the moment of connecting, so a visitor who just looks at the
+   * page is not thrown out a minute later. It also frees the room of tabs nobody uses.
+   */
+  connectionTtlMs?: number;
   /** How often subscribed topics get an event, in ms. Default 1000. */
   tickMs?: number;
   /** How often expired tokens and idle sessions are removed, in ms. Default 10 000. */
@@ -27,11 +34,11 @@ export interface DemoServerOptions {
 export interface PublicOptions {
   /** Origins (such as `https://demo.example.com`) whose pages may use the server. */
   allowedOrigins: string[];
-  /** Open connections in total. Default 200. */
+  /** Open connections in total. Default 500: measured on a 0.1 CPU allowance, see the README. */
   maxConnections?: number;
   /** Open connections for one session. Default 4. */
   maxConnectionsPerSession?: number;
-  /** Sessions alive at once. Default 100. */
+  /** Sessions alive at once. Default 500. */
   maxSessions?: number;
   /** `GET /token` calls per session per minute. Default 120. */
   tokensPerMinute?: number;
@@ -129,13 +136,14 @@ interface TokenRecord {
 export async function startDemoServer(options: DemoServerOptions = {}): Promise<DemoServer> {
   const tokenTtlMs = options.tokenTtlMs ?? 60_000;
   const tickMs = options.tickMs ?? 1000;
+  const connectionTtlMs = options.connectionTtlMs ?? 1_800_000;
 
   const pub = options.public;
   const allowedOrigins = new Set(pub?.allowedOrigins);
   const limits = {
-    connections: pub ? (pub.maxConnections ?? 200) : Infinity,
+    connections: pub ? (pub.maxConnections ?? 500) : Infinity,
     connectionsPerSession: pub ? (pub.maxConnectionsPerSession ?? 4) : Infinity,
-    sessions: pub ? (pub.maxSessions ?? 100) : Infinity,
+    sessions: pub ? (pub.maxSessions ?? 500) : Infinity,
     tokensPerMinute: pub ? (pub.tokensPerMinute ?? 120) : Infinity,
     controlsPerMinute: pub ? (pub.controlsPerMinute ?? 20) : Infinity,
     authTimeoutMs: pub ? (pub.authTimeoutMs ?? 10_000) : undefined,
@@ -144,6 +152,11 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
   const tokens = new Map<string, TokenRecord>();
   const sessions = new Map<string, Session>();
   const clients = new Set<Client>();
+  /**
+   * The clients of each session. Asking about one session (the web page does, twice a second) must
+   * not walk through every client on the server.
+   */
+  const bySession = new Map<string, Set<Client>>();
   let issued = 0;
   let score = 0;
 
@@ -176,6 +189,20 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
   const sessionOf = (client: Client): string => client.session ?? DEFAULT_SESSION;
   const isSilent = (client: Client): boolean => sessions.get(sessionOf(client))?.silent ?? false;
 
+  const removeFromSession = (client: Client): void => {
+    const id = sessionOf(client);
+    const group = bySession.get(id);
+    group?.delete(client);
+    if (group?.size === 0) bySession.delete(id);
+  };
+  const addToSession = (client: Client, id: string): void => {
+    removeFromSession(client);
+    client.session = id;
+    const group = bySession.get(id) ?? new Set<Client>();
+    group.add(client);
+    bySession.set(id, group);
+  };
+
   const isValid = (token: string | undefined): token is string => {
     if (token === undefined) return false;
     const record = tokens.get(token);
@@ -196,23 +223,21 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
       reject(client, 'invalid or expired token');
       return;
     }
-    let sessionConnections = 0;
-    for (const other of clients) {
-      if (other !== client && other.session === record.session) sessionConnections++;
-    }
+    const group = bySession.get(record.session);
+    const sessionConnections = (group?.size ?? 0) - (group?.has(client) === true ? 1 : 0);
     if (sessionConnections >= limits.connectionsPerSession) {
       // 1013: "try again later". It is not an auth failure, so a client would keep retrying.
       client.socket.close(1013, 'too many connections');
       return;
     }
     client.token = token;
-    client.session = record.session;
+    addToSession(client, record.session);
     clearTimeout(client.authTimer);
     clearTimeout(client.expiryTimer);
-    // A token that runs out mid-connection ends the connection, like a real session would.
+    // A session that runs out ends the connection, as a real one would.
     client.expiryTimer = setTimeout(() => {
-      reject(client, 'token expired');
-    }, record.expiresAt - Date.now());
+      reject(client, 'session expired');
+    }, connectionTtlMs);
   };
 
   const handleMessage = (client: Client, raw: RawData): void => {
@@ -252,6 +277,7 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
       authTimer: undefined,
     };
     clients.add(client);
+    addToSession(client, DEFAULT_SESSION);
     socket.on('message', (raw) => {
       handleMessage(client, raw);
     });
@@ -261,6 +287,7 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
     socket.on('close', () => {
       clearTimeout(client.expiryTimer);
       clearTimeout(client.authTimer);
+      removeFromSession(client);
       clients.delete(client);
     });
     // A token in the URL authenticates the connection straight away.
@@ -276,10 +303,17 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
 
   const ticker = setInterval(() => {
     score++;
+    // One JSON string per topic, not one per client: the message is the same for everybody.
+    const messages = new Map<string, string>();
     for (const client of clients) {
       if (isSilent(client)) continue;
       for (const topic of client.topics) {
-        send(client, { type: 'event', topic, payload: { score } });
+        let text = messages.get(topic);
+        if (text === undefined) {
+          text = JSON.stringify({ type: 'event', topic, payload: { score } });
+          messages.set(topic, text);
+        }
+        client.socket.send(text);
       }
     }
   }, tickMs);
@@ -323,8 +357,7 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
   const state = (id?: string): DemoServerState => {
     const topics: Record<string, number> = {};
     let connections = 0;
-    for (const client of clients) {
-      if (id !== undefined && sessionOf(client) !== id) continue;
+    for (const client of id === undefined ? clients : (bySession.get(id) ?? [])) {
       connections++;
       for (const topic of client.topics) topics[topic] = (topics[topic] ?? 0) + 1;
     }
@@ -347,7 +380,7 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
   };
 
   const dropSession = (id: string, code: number, reason: string): void => {
-    for (const client of clients) if (sessionOf(client) === id) client.socket.close(code, reason);
+    for (const client of [...(bySession.get(id) ?? [])]) client.socket.close(code, reason);
   };
 
   const handleHttp = (req: IncomingMessage, res: ServerResponse): void => {
@@ -388,14 +421,19 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
       return;
     }
 
+    // A token is no use when the connection it is for would be refused, so say so now.
+    if (isToken && clients.size >= limits.connections) {
+      respond(req, res, 503, { error: 'the demo is full, try again later', code: 'full' });
+      return;
+    }
     const session = sessionFor(id);
     if (!session) {
-      respond(req, res, 503, { error: 'the demo is full, try again later' });
+      respond(req, res, 503, { error: 'the demo is full, try again later', code: 'full' });
       return;
     }
     const bucket = isToken ? 'token' : 'control';
     if (!allow(session, bucket, isToken ? limits.tokensPerMinute : limits.controlsPerMinute)) {
-      respond(req, res, 429, { error: 'too many requests' });
+      respond(req, res, 429, { error: 'too many requests', code: 'rate-limited' });
       return;
     }
 
@@ -419,7 +457,7 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
       }, downMs);
     } else {
       for (const [token, record] of tokens) if (record.session === id) tokens.delete(token);
-      dropSession(id, AUTH_FAILURE_CODE, 'token expired');
+      dropSession(id, AUTH_FAILURE_CODE, 'tokens expired');
     }
     respond(req, res, 200, state(id));
   };

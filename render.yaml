@@ -19,3 +19,9 @@ services:
       # without it, instead of running as an open, shared playground on the internet.
       - key: ALLOWED_ORIGINS
         sync: false
+      # Room for visitors, measured for the free plan's small CPU (see apps/demo-server/README.md).
+      # These are also the defaults; on a bigger plan, raise them.
+      - key: MAX_CONNECTIONS
+        value: 500
+      - key: MAX_SESSIONS
+        value: 500

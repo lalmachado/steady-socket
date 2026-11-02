@@ -7,16 +7,22 @@
   "scripts": {
     "start": "tsx src/main.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "load": "tsx scripts/load.ts",
+    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --packages=external --target=node22 --outfile=dist/main.mjs"
   },
   "dependencies": {
-    "tsx": "^4.23.15",
     "ws": "^8.22.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/ws": "^8.18.2",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "vitest": "^5.0.5"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

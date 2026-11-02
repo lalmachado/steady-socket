@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "paths": { "steady-socket": ["../../src/index.ts"] }
+    "paths": {
+      "steady-socket": ["../../src/index.ts"]
+    }
   },
-  "include": ["src", "test", "vitest.config.ts"]
+  "include": ["src", "test", "scripts", "vitest.config.ts"]
 }

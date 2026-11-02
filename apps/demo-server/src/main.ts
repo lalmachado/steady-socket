@@ -16,10 +16,32 @@ if (process.env['REQUIRE_ALLOWED_ORIGINS'] === '1' && origins.length === 0) {
   process.exit(1);
 }
 
+/** A positive whole number from the environment, or nothing if it is not set. */
+function limitFromEnv(name: string): number | undefined {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return undefined;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    console.error(`${name} must be a positive whole number, not "${raw}".`);
+    process.exit(1);
+  }
+  return value;
+}
+const maxConnections = limitFromEnv('MAX_CONNECTIONS');
+const maxSessions = limitFromEnv('MAX_SESSIONS');
+
 const server = await startDemoServer({
   port,
   host,
-  ...(origins.length > 0 ? { public: { allowedOrigins: origins } } : {}),
+  ...(origins.length > 0
+    ? {
+        public: {
+          allowedOrigins: origins,
+          ...(maxConnections !== undefined ? { maxConnections } : {}),
+          ...(maxSessions !== undefined ? { maxSessions } : {}),
+        },
+      }
+    : {}),
 });
 
 const base = `http://${host === '0.0.0.0' ? 'localhost' : host}:${String(server.port)}`;

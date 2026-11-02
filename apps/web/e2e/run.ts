@@ -13,12 +13,30 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
-import { startDemoServer, type DemoServer } from '../../demo-server/src/server.js';
+import {
+  startDemoServer,
+  type DemoServer,
+  type DemoServerOptions,
+} from '../../demo-server/src/server.js';
 
 const APP_DIR = fileURLToPath(new URL('..', import.meta.url));
 const SERVER_PORT = 8787; // the port the app is built to use
 const PROD_PORT = 3100;
 const DEV_PORT = 3101;
+const ORIGINS = [`http://localhost:${String(PROD_PORT)}`, `http://localhost:${String(DEV_PORT)}`];
+// Tokens that run out within seconds. A token is only for connecting, so a page must stay connected
+// long after its token has expired: with the old "a token ends its connection" rule every page was
+// thrown out after a minute, which no short test would have noticed.
+const TOKEN_TTL_MS = 3000;
+
+function serverOptions(overrides: Partial<DemoServerOptions> = {}): DemoServerOptions {
+  return {
+    port: SERVER_PORT,
+    tokenTtlMs: TOKEN_TTL_MS,
+    ...(process.env['E2E_PUBLIC'] ? { public: { allowedOrigins: ORIGINS } } : {}),
+    ...overrides,
+  };
+}
 const RECORD = process.env['RECORD_DIR'];
 // A recording is paced so a person can follow it; a normal run goes as fast as it can.
 const pause = (ms: number) => (RECORD ? sleep(ms) : Promise.resolve());
@@ -139,6 +157,12 @@ async function scenarios(browser: Browser, server: DemoServer): Promise<void> {
   if (server.state().connections !== 1 || server.state().topics['match:42'] !== 1)
     throw new Error('Expected one connection and one listener.');
   ok('the server sees one connection with one listener');
+  if (!RECORD) {
+    await sleep(TOKEN_TTL_MS + 1500);
+    if ((await stateOf(page)) !== 'open')
+      throw new Error('The page was thrown out when its token ran out.');
+    ok('the page stays connected after its token has run out (a token is only for connecting)');
+  }
   await pause(2500);
 
   // 1. A connection that stays open but goes silent: only the heartbeat can notice.
@@ -282,6 +306,40 @@ async function isolation(browser: Browser, server: DemoServer): Promise<void> {
   await two.context.close();
 }
 
+/** A server with room for one visitor: the second must be told it is busy, and get in later. */
+async function busy(browser: Browser, server: DemoServer): Promise<DemoServer> {
+  console.log('\nA full server');
+  await server.close();
+  const small = await startDemoServer(
+    serverOptions({
+      tokenTtlMs: 1000,
+      sweepMs: 200,
+      public: { allowedOrigins: ORIGINS, maxSessions: 1 },
+    }),
+  );
+  const one = await openPage(browser, PROD_PORT);
+  await until(async () => (await stateOf(one.page)) === 'open', 'the first visitor to get in');
+  const two = await openPage(browser, PROD_PORT);
+  await until(
+    async () => (await two.page.getByTestId('busy').count()) > 0,
+    'the page to say the demo is busy',
+    15_000,
+  );
+  if ((await stateOf(two.page)) === 'closed')
+    throw new Error('A full server ended the socket as if the login had failed.');
+  ok('when the server is full the page says it is busy, and the socket keeps trying');
+  await one.context.close();
+  await until(
+    async () => (await stateOf(two.page)) === 'open',
+    'the second visitor to get in once there is room',
+    30_000,
+  );
+  ok('and the second visitor gets in by itself as soon as there is room');
+  await two.context.close();
+  await small.close();
+  return startDemoServer(serverOptions());
+}
+
 /** `next dev` runs React Strict Mode, which runs every effect, cleans it up and runs it again. */
 async function strictMode(browser: Browser, server: DemoServer): Promise<void> {
   console.log('\nDevelopment server (next dev, React Strict Mode)');
@@ -305,19 +363,7 @@ async function main(): Promise<void> {
   let server: DemoServer | undefined;
   let browser: Browser | undefined;
   try {
-    server = await startDemoServer({
-      port: SERVER_PORT,
-      ...(process.env['E2E_PUBLIC']
-        ? {
-            public: {
-              allowedOrigins: [
-                `http://localhost:${String(PROD_PORT)}`,
-                `http://localhost:${String(DEV_PORT)}`,
-              ],
-            },
-          }
-        : {}),
-    });
+    server = await startDemoServer(serverOptions());
     children.push(await startNext('start', PROD_PORT));
     browser = await chromium.launch({
       ...(process.env['CHROMIUM_PATH'] ? { executablePath: process.env['CHROMIUM_PATH'] } : {}),
@@ -325,6 +371,7 @@ async function main(): Promise<void> {
     await scenarios(browser, server);
     if (!RECORD) {
       await isolation(browser, server);
+      server = await busy(browser, server);
       // Stop the production server first: both servers write to the same `.next` directory.
       children.pop()?.kill('SIGTERM');
       await sleep(500);

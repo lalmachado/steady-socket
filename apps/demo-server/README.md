@@ -27,9 +27,10 @@ JSON messages, the same ones the main README's examples use:
 
 A connection has to authenticate before it subscribes, either with `?token=` in the URL or with an
 `auth` message. Subscribing first closes the connection with code **4401**, which is what makes the
-order of auth and replay visible. Get a token from `GET /token`; it lives for 60 seconds, and a
-connection is closed with 4401 when its token runs out. Every subscribed topic gets an event once a
-second.
+order of auth and replay visible. Get a token from `GET /token`. A token is only for connecting: it is valid for 60 seconds, and a
+connection that is already open does not depend on it. The server ends a connection with 4401 after
+30 minutes, as a session that ran out would (`connectionTtlMs`), which also frees the room of tabs
+nobody uses. Every subscribed topic gets an event once a second.
 
 ## Sessions
 
@@ -67,17 +68,49 @@ turns on public mode:
 - **Origins are checked.** A browser page from any other origin gets `403`, for the WebSocket and
   for the controls (a control is refused, not just unreadable). Native apps and `curl` send no
   `Origin` header and are not blocked by this; the limits below are what bound them.
-- **Limits** (all can be changed in `startDemoServer({ public: { … } })`): 200 connections in
-  total, 4 per session, 100 sessions at once, 120 tokens and 20 controls per session per minute,
-  and a connection that does not authenticate within 10 s is closed.
+- **Limits** (all can be changed in `startDemoServer({ public: { … } })`; `MAX_CONNECTIONS` and
+  `MAX_SESSIONS` set the first two from the environment): 500 connections in total, 4 per session,
+  500 sessions at once, 120 tokens and 20 controls per session per minute, and a connection that
+  does not authenticate within 10 s is closed. When the server is full, `GET /token` answers `503`
+  with `{ "code": "full" }` (and `429` with `"rate-limited"`), so a client can tell "busy" from a
+  failed login; the web demo shows a "busy" message and keeps retrying.
 
 Limits that apply in every mode: messages over 4 KiB close the connection, a connection keeps at
 most 20 topics of at most 64 characters, and a restart lasts at most 30 s.
 
-What this does **not** do: stop a determined attacker. Someone can still fill the 100 session
+What this does **not** do: stop a determined attacker. Someone can still fill the session
 slots and lock out real visitors until they expire, and there is no per-IP limit (behind a proxy
 every request has the proxy's address, so that needs the host's help). It is a demo: if it is
 abused, redeploy it or take it down. Do not put anything real behind it.
+
+### How many visitors it holds
+
+Measured, not guessed: `pnpm --filter @steady-socket/demo-server load -- <url> <visitors> <seconds>`
+opens that many visitors that behave like the web page (a session each, a connection, a ping every
+2 s, `GET /state` every 2 s) and reports how late the pongs are. The demo's heartbeat gives a pong
+1 s, so a later one is a connection that `steady-socket` would call dead. Run in the image with
+**0.1 CPU and 512 MB**, which is what a free Render web service is described as having:
+
+| visitors | CPU of the allowance | memory | pong p99 | pongs over 1 s | `/state` p99 |
+| -------- | -------------------- | ------ | -------- | -------------- | ------------ |
+| 300      | 52%                  | 29 MB  | 577 ms   | 0              | 420 ms       |
+| 500      | 50%                  | 32 MB  | 594 ms   | 0              | 589 ms       |
+| 700      | 68%                  | 31 MB  | 192 ms   | 0              | 3.4 s        |
+| 1000     | 100%                 | 38 MB  | 449 ms   | 0              | 788 ms       |
+
+500 connections is half the allowance, which leaves room for bursts, so that is the default cap.
+At 1000 the allowance is all used: it still worked in these runs, with nothing in reserve. (The
+slow `/state` at 700 is the first seconds, while everybody arrives at once.) Runs vary, so read
+these as sizes, not promises. Two changes made the difference:
+
+- Polling `/state` twice a second per page used up the whole allowance at about 300 visitors, since
+  an HTTP request costs far more than a WebSocket message. The page now asks every 2 s, not at all
+  while its tab is hidden, and once right after a button press.
+- The server starts from one compiled file, not from TypeScript with `tsx`: about 2.4 s on that CPU
+  instead of 6.8 s, which is the wait when the host wakes the server up, and about half the memory.
+
+On a bigger plan, raise `MAX_CONNECTIONS` and `MAX_SESSIONS`. These are numbers for this demo on a
+small CPU, not for `steady-socket`.
 
 ### Docker
 
