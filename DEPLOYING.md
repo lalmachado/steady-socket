@@ -65,6 +65,23 @@ Vercel preview deployments have their own URLs and are **not** allowed unless yo
     "https://<service>.onrender.com/control/silent?session=abcdefgh1234"   # 403
   ```
 
+## Before a big post (for example Show HN)
+
+A front-page post sends a crowd at once. Checks worth doing the day before:
+
+- **Keep the server awake.** A free Render service sleeps after 15 minutes without traffic and the
+  first visitor waits for it to wake (the server itself starts in about 2.5 s on a small CPU; most
+  of the wait is Render's). Ping `https://<service>.onrender.com/state` every 10 minutes, with an
+  uptime monitor or a scheduled job, from the day before until the post has settled. One free
+  service has enough free hours to stay on all month, but check Render's current terms.
+- **Know the room.** The server holds 500 visitors at once on the free plan (see
+  [how many visitors it holds](./apps/demo-server/README.md#how-many-visitors-it-holds)). Past that,
+  new visitors see "The demo is busy" and keep retrying, and get in when someone leaves; a visitor's
+  connection is ended after 30 minutes, which frees the room of forgotten tabs. On a paid plan,
+  raise `MAX_CONNECTIONS` and `MAX_SESSIONS`.
+- **Try it from a phone on mobile data**, not only from your own computer.
+- **Watch the Render dashboard's logs and CPU** during the first hour.
+
 ## If it gets abused
 
 Public mode limits what one visitor can do, but it does not stop a determined attacker (see the

@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { SocketProvider, useSocket, useSocketState, useSubscription } from 'steady-socket/react';
-import { api, createDemoSocket, type DemoSocket, type Incoming, type Outgoing } from './socket';
+import {
+  api,
+  createDemoSocket,
+  type DemoSocket,
+  type Incoming,
+  type Outgoing,
+  type Problem,
+} from './socket';
 
 interface LogEntry {
   at: number;
@@ -16,6 +23,9 @@ export function Demo() {
   // "sign in again" after an auth failure means a new one.
   const [session, setSession] = useState(1);
   const [socket, setSocket] = useState<DemoSocket | null>(null);
+  const [problem, setProblem] = useState<Problem>();
+  // Bumped after a button press, so the "what the server sees" card looks again straight away.
+  const [refresh, setRefresh] = useState(0);
   const [log, setLog] = useState<LogEntry[]>([]);
 
   const note = useCallback((text: string) => {
@@ -26,7 +36,7 @@ export function Demo() {
     // Create, connect and close the socket together, in one effect. Not at module level: that
     // would also run on the server. And not "create once, connect and close in an effect": React
     // Strict Mode runs an effect, cleans it up and runs it again, and `close()` is final.
-    const created = createDemoSocket();
+    const created = createDemoSocket(setProblem);
     // Listen before connecting, so the log starts at `connecting`.
     const stopLogging = created.onState((state) => {
       note(created.closeReason ? `${state} (${created.closeReason})` : state);
@@ -54,7 +64,7 @@ export function Demo() {
   return (
     <SocketProvider socket={socket}>
       <div className="grid">
-        <StateCard />
+        <StateCard problem={problem} />
         <ScoreCard />
       </div>
       <Controls
@@ -62,6 +72,9 @@ export function Demo() {
           setSession((n) => n + 1);
         }}
         note={note}
+        onDone={() => {
+          setRefresh((n) => n + 1);
+        }}
       />
       <div className="grid">
         <section className="card">
@@ -75,7 +88,7 @@ export function Demo() {
             ))}
           </ul>
         </section>
-        <ServerCard />
+        <ServerCard refresh={refresh} />
       </div>
     </SocketProvider>
   );
@@ -97,7 +110,7 @@ function useAfter(active: boolean, ms: number): boolean {
   return active && elapsed;
 }
 
-function StateCard() {
+function StateCard({ problem }: { problem: Problem | undefined }) {
   const socket = useSocket<Incoming, Outgoing>();
   const state = useSocketState();
   // The public demo server runs on a free plan that sleeps when idle, and waking it takes a while.
@@ -114,7 +127,19 @@ function StateCard() {
           closed: {socket.closeReason}
         </div>
       )}
-      {waiting && (
+      {state === 'closed' && socket.closeReason === 'auth-failure' && (
+        <div className="muted">
+          The server ended this session. Sign in again to start a new one.
+        </div>
+      )}
+      {problem !== undefined && (state === 'connecting' || state === 'reconnecting') && (
+        <div className="muted" data-testid="busy">
+          {problem === 'busy'
+            ? 'The demo is busy: it runs on a small free server with limited room. steady-socket keeps retrying, so it connects as soon as there is room.'
+            : 'This page asked for a connection too often. steady-socket retries by itself in a moment.'}
+        </div>
+      )}
+      {problem === undefined && waiting && (
         <div className="muted" data-testid="waking">
           Still trying. The demo server runs on a free plan that sleeps when idle, and waking it can
           take up to a minute. steady-socket keeps retrying by itself.
@@ -163,9 +188,11 @@ function ScoreCard() {
 function Controls({
   onSignInAgain,
   note,
+  onDone,
 }: {
   onSignInAgain: () => void;
   note: (text: string) => void;
+  onDone: () => void;
 }) {
   const state = useSocketState();
 
@@ -173,6 +200,7 @@ function Controls({
     note(`you: ${label}`);
     try {
       await fetch(api(path), { method: 'POST' });
+      onDone();
     } catch {
       note('the demo server is not reachable');
     }
@@ -215,13 +243,21 @@ interface ServerState {
   topics: Record<string, number>;
 }
 
-/** What the server sees, polled twice a second, so you can compare it with what the client shows. */
-function ServerCard() {
+/**
+ * How often to ask what the server sees. Every open page asks, so on the small free server this is
+ * most of its work: twice a second, a few hundred visitors used up all of it. A page nobody is
+ * looking at does not ask at all.
+ */
+const POLL_MS = 2000;
+
+/** What the server sees, so you can compare it with what the client shows. */
+function ServerCard({ refresh }: { refresh: number }) {
   const [server, setServer] = useState<ServerState | 'unreachable'>();
 
   useEffect(() => {
     let cancelled = false;
     const poll = async () => {
+      if (document.hidden) return;
       try {
         const response = await fetch(api('/state'));
         const body = (await response.json()) as ServerState;
@@ -231,12 +267,15 @@ function ServerCard() {
       }
     };
     void poll();
-    const timer = setInterval(() => void poll(), 500);
+    const timer = setInterval(() => void poll(), POLL_MS);
+    const onVisible = () => void poll();
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
       clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [refresh]);
 
   return (
     <section className="card">

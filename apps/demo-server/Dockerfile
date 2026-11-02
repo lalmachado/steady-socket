@@ -4,8 +4,12 @@ FROM node:22-slim AS build
 RUN corepack enable
 WORKDIR /repo
 COPY . .
-# Only this app's dependencies, and then a standalone copy of it without the dev dependencies.
+# Only this app's dependencies. The server is compiled to one JavaScript file, because starting it
+# from TypeScript (tsx) took about 7 s on a small free CPU against about 2 s for the compiled file,
+# and that start is what a visitor waits for when the host wakes the server up.
 RUN pnpm install --frozen-lockfile --filter @steady-socket/demo-server...
+RUN pnpm --filter @steady-socket/demo-server build
+# A standalone copy of it (the compiled file and `ws`) without the dev dependencies.
 RUN pnpm --filter @steady-socket/demo-server --prod deploy --legacy /out
 
 FROM node:22-slim
@@ -16,4 +20,4 @@ USER node
 EXPOSE 8787
 # ALLOWED_ORIGINS turns on public mode (see the README), and this image refuses to start without it
 # (REQUIRE_ALLOWED_ORIGINS). `GET /state` is a health check.
-CMD ["node_modules/.bin/tsx", "src/main.ts"]
+CMD ["node", "dist/main.mjs"]

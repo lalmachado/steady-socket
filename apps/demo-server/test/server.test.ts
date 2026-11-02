@@ -91,12 +91,29 @@ describe('tokens and auth', () => {
     expect((await byUrl.closed).code).toBe(AUTH_FAILURE_CODE);
   });
 
-  it('closes a connection with 4401 when its token runs out', async () => {
-    const short = await startDemoServer({ port: 0, tokenTtlMs: 150 });
+  it('closes a connection with 4401 when its session runs out', async () => {
+    const short = await startDemoServer({ port: 0, connectionTtlMs: 150 });
     const res = await fetch(`http://127.0.0.1:${String(short.port)}/token`);
     const { token: t } = (await res.json()) as { token: string };
     const ws = new WebSocket(`ws://127.0.0.1:${String(short.port)}/?token=${t}`);
     const code = await new Promise<number>((resolve) => ws.on('close', resolve));
+    expect(code).toBe(AUTH_FAILURE_CODE);
+    await short.close();
+  });
+
+  it('does not end a connection when its token runs out: a token is only for connecting', async () => {
+    const short = await startDemoServer({ port: 0, tokenTtlMs: 100 });
+    const res = await fetch(`http://127.0.0.1:${String(short.port)}/token`);
+    const { token: t } = (await res.json()) as { token: string };
+    const ws = new WebSocket(`ws://127.0.0.1:${String(short.port)}/?token=${t}`);
+    await new Promise<void>((resolve) => ws.once('open', resolve));
+    await new Promise((r) => setTimeout(r, 350)); // well past the token's life
+    expect(ws.readyState).toBe(WebSocket.OPEN);
+    ws.close();
+
+    // But the expired token cannot be used to connect again.
+    const again = new WebSocket(`ws://127.0.0.1:${String(short.port)}/?token=${t}`);
+    const code = await new Promise<number>((resolve) => again.on('close', resolve));
     expect(code).toBe(AUTH_FAILURE_CODE);
     await short.close();
   });

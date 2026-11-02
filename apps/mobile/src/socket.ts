@@ -55,6 +55,9 @@ export function createDemoSocket(): DemoSocket {
     // A fresh token on every connect attempt, including every reconnect.
     url: async () => {
       const response = await fetch(api('/token'));
+      // A refusal ("the demo is full") is not a token. Throwing makes steady-socket try again
+      // later; connecting with a made-up token would be a bad login, which stops the socket.
+      if (!response.ok) throw new Error(`The demo server answered ${String(response.status)}.`);
       const { token } = (await response.json()) as { token: string };
       return `${WS_SERVER}/?token=${token}`;
     },

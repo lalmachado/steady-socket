@@ -32,6 +32,9 @@ export type Outgoing =
 
 export type DemoSocket = Socket<Incoming, Outgoing>;
 
+/** Why the demo server would not hand out a token: it is full, or this page asked too often. */
+export type Problem = 'busy' | 'rate-limited';
+
 /** The close code the demo server uses for "your credentials are bad". */
 const AUTH_FAILURE_CODE = 4401;
 
@@ -39,11 +42,29 @@ const AUTH_FAILURE_CODE = 4401;
  * The same setup the main README shows, pointed at the demo server. Short timings, so that what
  * happens is visible within seconds.
  */
-export function createDemoSocket(): DemoSocket {
+export function createDemoSocket(onProblem?: (problem: Problem | undefined) => void): DemoSocket {
   return createSocket<Incoming, Outgoing>({
     // A fresh token on every connect attempt, including every reconnect.
     url: async () => {
       const response = await fetch(api('/token'));
+      if (!response.ok) {
+        // Not a token, so not a URL either: throwing makes steady-socket count it as a failed
+        // attempt and try again later, with backoff. (Using the answer as if it were a token
+        // would connect with a bad one, and a bad login stops the socket for good.)
+        const body = (await response.json().catch(() => undefined)) as
+          { code?: unknown } | undefined;
+        onProblem?.(
+          body?.code === 'full'
+            ? 'busy'
+            : body?.code === 'rate-limited'
+              ? 'rate-limited'
+              : undefined,
+        );
+        throw new Error(
+          `The demo server answered ${String(response.status)} to the token request.`,
+        );
+      }
+      onProblem?.(undefined);
       const { token } = (await response.json()) as { token: string };
       return `${WS_SERVER}/?token=${token}`;
     },

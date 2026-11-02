@@ -3,6 +3,6 @@
 **/.next
 **/.expo
 **/.expo-export
-dist
+**/dist
 coverage
 docs

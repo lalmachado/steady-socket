@@ -207,6 +207,29 @@ describe('public mode', () => {
     expect((await get(`/token?session=${B}`)).status).toBe(200);
   });
 
+  it('says why a token is refused: the server is full, or the session is going too fast', async () => {
+    server = await start({
+      public: { allowedOrigins: [ORIGIN], maxSessions: 1, tokensPerMinute: 1 },
+    });
+    expect((await get(`/token?session=${A}`)).status).toBe(200);
+    const limited = await get(`/token?session=${A}`);
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toMatchObject({ code: 'rate-limited' });
+    const full = await get(`/token?session=${B}`);
+    expect(full.status).toBe(503);
+    expect(await full.json()).toMatchObject({ code: 'full' });
+  });
+
+  it('refuses a token when the connections are used up, before the handshake would fail', async () => {
+    server = await start({ public: { allowedOrigins: [ORIGIN], maxConnections: 1 } });
+    const first = await connect(A);
+    await first.opened;
+    const res = await get(`/token?session=${B}`);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: 'full' });
+    first.ws.close();
+  });
+
   it('limits tokens and controls per session per minute', async () => {
     server = await start({
       public: { allowedOrigins: [ORIGIN], tokensPerMinute: 2, controlsPerMinute: 1 },
