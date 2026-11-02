@@ -22,14 +22,41 @@ The core is plain TypeScript with no dependencies. A thin React layer sits on to
 
 ## Why
 
-A WebSocket that works in a demo and one that works in production are different things. Reconnecting clients such as `partysocket` and `reconnecting-websocket` already cover backoff and a fresh URL on each connect, and `react-use-websocket` has a heartbeat. What none of them does is the part that sits on top of the connection:
+A WebSocket that works in a demo and one that works in production are different things. Reconnecting clients such as `partysocket` and `reconnecting-websocket` already cover backoff and a fresh URL on each connect, and `react-use-websocket` and Socket.IO have heartbeats. What the plain-WebSocket libraries leave to you is the part that sits on top of the connection (see [how it compares](#how-it-compares)):
 
 - **The server forgets your subscriptions.** A new connection starts empty. Whatever the client was listening to has to be sent again, after auth and in the right order. `steady-socket` reference-counts subscriptions per topic and replays them after your `onOpen` auth step on every reconnect.
 - **Mobile apps go to sleep.** In the background, timers stop being reliable and the OS may drop the connection. When the app comes back, the user expects live data immediately, not after the next backoff step. `steady-socket` takes React Native's `AppState` (passed in by you) and skips the backoff wait on foreground.
-- **Connections die without telling you.** A NAT timeout, a proxy, or a phone switching from Wi-Fi to 4G can leave a socket that looks open but delivers nothing. No `close` event ever fires. Only a heartbeat catches it, and `partysocket` has none.
+- **Connections die without telling you.** A NAT timeout, a proxy, or a phone switching from Wi-Fi to 4G can leave a socket that looks open but delivers nothing. No `close` event ever fires. Only a heartbeat catches it, and `partysocket` and `reconnecting-websocket` have none.
 - **Bad credentials should stop the loop.** A close code that means "your token is wrong" moves the socket to `closed` with a reason instead of retrying forever.
 
 All of it sits behind a small, explicit state machine you can observe and test, with no dependencies in the core.
+
+## How it compares
+
+Read from each library's published code (versions below), not from memory or marketing.
+
+|                                           | steady-socket                            | partysocket 1.3 | reconnecting-websocket 4.4 | react-use-websocket 4.13                   | Socket.IO client 4.8                               |
+| ----------------------------------------- | ---------------------------------------- | --------------- | -------------------------- | ------------------------------------------ | -------------------------------------------------- |
+| Talks to a plain WebSocket server         | yes                                      | yes             | yes                        | yes                                        | **no**: needs a Socket.IO server                   |
+| Reconnects with backoff                   | yes, full jitter                         | yes, no jitter  | yes, random first delay    | fixed 5 s, 20 tries; you write any backoff | yes, with jitter                                   |
+| Heartbeat for silently dead connections   | yes                                      | no              | no                         | yes                                        | yes, driven by the server                          |
+| Fresh URL or credentials on every connect | yes                                      | yes             | yes                        | yes                                        | yes (`auth` function)                              |
+| Stops for good when credentials are bad   | yes (`isAuthFailure`)                    | by hand         | by hand                    | with `shouldReconnect`                     | yes, when the server denies the login              |
+| Subscribes again after a reconnect        | yes, after auth                          | no              | no                         | no                                         | partly: opt-in recovery on the server, short drops |
+| Reacts to the app or network waking up    | yes: web events, React Native `AppState` | no              | no                         | no                                         | partly: closes on the browser's `offline`          |
+| Queues sends while offline                | opt-in                                   | yes             | yes                        | yes                                        | yes                                                |
+| React hooks                               | yes                                      | yes             | no                         | yes (it is the library)                    | no                                                 |
+| Size, minified and gzipped                | 1.5 kB (+0.3 kB React)                   | 2.7 kB          | 3.2 kB                     | 6.8 kB                                     | 13.0 kB                                            |
+| Last release                              | Oct 2026, 0.x                            | Jun 2026        | Feb 2020                   | Feb 2025                                   | Sep 2026                                           |
+
+**Where the others are better.**
+
+- **Socket.IO** gives you rooms, acknowledgements (request and response), fallback transports and a large ecosystem. If you control the server and want those, use it. `steady-socket` is for plain WebSocket servers, and it has no acknowledgements yet.
+- **partysocket** is established and actively released (1.3.0 in June 2026), is a drop-in `WebSocket` replacement, and lists support for Cloudflare Workers, Deno and Bun. If reconnecting and buffering is all you need, it is the simpler choice.
+- **react-use-websocket** can share one socket between components (`share`), has JSON helpers, and can also speak Socket.IO and Server-Sent Events.
+- **`steady-socket` is new** (0.x): it has few users so far, and its API may change before 1.0.
+
+[How each cell was checked](./docs/comparison.md): versions as published on npm on the day of writing; features read from each package's source and types (`reconnecting-websocket` has had no release since 2020); sizes are the main entry bundled with esbuild, minified and gzipped with React external, the same way for every library. They compare what you ship, not how much each library does.
 
 ## Install
 
