@@ -5,8 +5,9 @@ describes, against the [demo server](../demo-server/README.md). It is the same s
 [web demo](../web/README.md), with one difference: the lifecycle is React Native's `AppState`
 through `appStateLifecycle(AppState)` instead of `browserLifecycle()`.
 
-> **Status:** the app is type-checked, linted, and bundled by Metro in CI (Node 22). It has not
-> been run on a device by CI, because CI has no device. Run it and check the scenarios below.
+> **Status:** the maintainer has run the app on a phone and it works. CI has no device, so it only
+> type-checks, lints, and bundles the app with Metro (Node 22). Run it yourself and try the
+> scenarios below.
 
 ## Run it
 

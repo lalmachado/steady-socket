@@ -303,7 +303,8 @@ retrying until the server answers. Each visitor's buttons only affect their own 
 `apps/demo-server` is a WebSocket server that can go silent while staying open, restart, and expire
 tokens on request. `apps/web` is a Next.js page that uses `steady-socket` against it, so you can
 break the connection and watch it recover. `apps/mobile` is the same screen as an Expo app, using
-`appStateLifecycle(AppState)`; CI bundles it, but nothing runs it on a device yet. See the
+`appStateLifecycle(AppState)`; it has been run on a phone, and CI bundles it but has no device to
+run it on. See the
 [web demo](./apps/web/README.md), the [mobile demo](./apps/mobile/README.md) and the
 [server](./apps/demo-server/README.md).
 
