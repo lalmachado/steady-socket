@@ -42,10 +42,44 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
   // Bumped whenever the current attempt is abandoned, so late async results can tell they are stale.
   let generation = 0;
 
+  /**
+   * Something the caller gave us failed. The connection is fine, so it must not suffer: report the
+   * error and carry on. Left to propagate, an exception from a message listener leaves the socket
+   * "open" but deaf (the `ws` package stops reading), and one from a state listener would stop
+   * `open` from ever starting the heartbeat.
+   */
+  function reportError(error: unknown): void {
+    if (options.onError) {
+      try {
+        options.onError(error);
+        return;
+      } catch (onErrorError) {
+        error = onErrorError; // the handler itself failed: surface that, below
+      }
+    }
+    setTimeout(() => {
+      throw error;
+    }, 0);
+  }
+
+  /** Runs `fn`, reporting an exception instead of throwing it. Returns what `fn` returned, if it did. */
+  function guarded<T>(fn: () => T): { value: T } | undefined {
+    try {
+      return { value: fn() };
+    } catch (error) {
+      reportError(error);
+      return undefined;
+    }
+  }
+
   function setState(next: ConnectionState): void {
     if (state === next) return;
     state = next;
-    for (const listener of [...stateListeners]) listener(state);
+    for (const listener of [...stateListeners]) {
+      guarded(() => {
+        listener(state);
+      });
+    }
   }
 
   async function attempt(): Promise<void> {
@@ -68,16 +102,26 @@ export function createSocket<Incoming = unknown, Outgoing = unknown>(
     });
     socket.addEventListener('message', (event) => {
       if (mine !== generation) return;
-      const message = parse(event.data);
-      if (options.heartbeat?.isPong(message)) {
+      const parsed = guarded(() => parse(event.data));
+      if (!parsed) return; // unreadable: reported, and the next message is unaffected
+      const message = parsed.value;
+      if (guarded(() => options.heartbeat?.isPong(message) === true)?.value) {
         clearTimeout(pongTimer);
         pongTimer = undefined;
         return;
       }
-      for (const listener of [...messageListeners]) listener(message);
-      const topic = options.subscriptions?.topicOf(message);
+      for (const listener of [...messageListeners]) {
+        guarded(() => {
+          listener(message);
+        });
+      }
+      const topic = guarded(() => options.subscriptions?.topicOf(message))?.value;
       if (topic !== undefined) {
-        for (const entry of [...(topics.get(topic) ?? [])]) entry.handler(message);
+        for (const entry of [...(topics.get(topic) ?? [])]) {
+          guarded(() => {
+            entry.handler(message);
+          });
+        }
       }
     });
     socket.addEventListener('close', (event) => {
