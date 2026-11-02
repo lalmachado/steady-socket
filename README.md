@@ -26,6 +26,8 @@ A thin React layer sits on top and runs unchanged in Next.js and Expo.
 
 > **Status:** early release (0.x). The API is complete for what is described below and is covered by tests, but it may still change in minor versions until 1.0. Changes are listed in [CHANGELOG.md](./CHANGELOG.md); the plan is in [ROADMAP.md](./ROADMAP.md).
 
+How it works and why, including what it does badly: [design decisions](./docs/design-decisions.md).
+
 ---
 
 ## Why
