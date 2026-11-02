@@ -21,14 +21,18 @@ if tag_on_remote && release_exists; then
 fi
 
 # Only release versions npm actually has: a publish may have failed or be waiting for approval.
-# The registry can lag a few seconds behind a publish, so ask a few times.
+# The registry can lag a publish by a minute or more (0.1.2 took longer than 30 s to show up), so
+# wait up to REGISTRY_RETRIES x REGISTRY_RETRY_SECONDS (4 minutes by default).
 published=""
-for _ in 1 2 3 4 5 6; do
+for _ in $(seq 1 "${REGISTRY_RETRIES:-24}"); do
   published=$(npm view "$name@$version" version 2>/dev/null || true)
   [ "$published" = "$version" ] && break
-  sleep "${REGISTRY_RETRY_SECONDS:-5}"
+  sleep "${REGISTRY_RETRY_SECONDS:-10}"
 done
 if [ "$published" != "$version" ]; then
+  # Not an error: a publish waiting for approval is normal, and the next push to main tries again.
+  # But say so where it can be seen: a green run with no release is easy to miss.
+  echo "::warning title=No tag or release for $tag::$name@$version is not on npm yet, so it was not tagged. The next push to main tries again."
   echo "$name@$version is not on npm (yet), so no tag and no release."
   exit 0
 fi
