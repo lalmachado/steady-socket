@@ -34,7 +34,7 @@ export function api(path: string): string {
 }
 
 export type Incoming =
-  { type: 'pong' } | { type: 'event'; topic: string; payload: { score: number } };
+  { type: 'pong' } | { type: 'event'; topic: string; payload: { time: string } };
 
 export type Outgoing =
   | { type: 'ping' }

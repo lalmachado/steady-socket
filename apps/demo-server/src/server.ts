@@ -119,7 +119,7 @@ interface TokenRecord {
  * Protocol (JSON messages):
  *  - client → server: `{type:'auth', token}`, `{type:'subscribe', topic}`, `{type:'unsubscribe', topic}`,
  *    `{type:'ping'}`
- *  - server → client: `{type:'pong'}` and `{type:'event', topic, payload:{score}}`
+ *  - server → client: `{type:'pong'}` and `{type:'event', topic, payload:{time}}`, where `time` is the server's clock
  *
  * A connection must authenticate before it subscribes, with `?token=` in the URL or an `auth`
  * message. Anything else closes it with 4401.
@@ -158,7 +158,6 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
    */
   const bySession = new Map<string, Set<Client>>();
   let issued = 0;
-  let score = 0;
 
   /** The session with this id, created if there is room. `undefined` means the server is full. */
   const sessionFor = (id: string): Session | undefined => {
@@ -302,7 +301,7 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
   });
 
   const ticker = setInterval(() => {
-    score++;
+    const time = new Date().toISOString();
     // One JSON string per topic, not one per client: the message is the same for everybody.
     const messages = new Map<string, string>();
     for (const client of clients) {
@@ -310,7 +309,7 @@ export async function startDemoServer(options: DemoServerOptions = {}): Promise<
       for (const topic of client.topics) {
         let text = messages.get(topic);
         if (text === undefined) {
-          text = JSON.stringify({ type: 'event', topic, payload: { score } });
+          text = JSON.stringify({ type: 'event', topic, payload: { time } });
           messages.set(topic, text);
         }
         client.socket.send(text);

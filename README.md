@@ -10,7 +10,7 @@ Many apps get live updates from a server: the score of a match, a chat message, 
 
 That connection breaks more often than you would expect. The Wi-Fi drops, a phone locks its screen, the server restarts, a login expires, or a router quietly stops passing data and nothing tells the app. Left alone, the app shows stale data, reconnects so eagerly that it hammers the server, or forgets what it was listening to.
 
-`steady-socket` is a small library that looks after that connection. You say what you want to hear about, for example `match:42`, and it keeps the connection healthy: it notices a dead connection (it pings the server), reconnects with growing delays, logs in again, and subscribes to everything again. Your code only sees the connection state (`open`, `reconnecting`, `closed`) and the messages. There is a [live demo](#demo) where you can break the connection yourself.
+`steady-socket` is a small library that looks after that connection. You say what you want to hear about, for example `clock`, and it keeps the connection healthy: it notices a dead connection (it pings the server), reconnects with growing delays, logs in again, and subscribes to everything again. Your code only sees the connection state (`open`, `reconnecting`, `closed`) and the messages. There is a [live demo](#demo) where you can break the connection yourself.
 
 `steady-socket` wraps the platform `WebSocket` with the parts every real-time app ends up rewriting: heartbeats that catch dead connections, reconnects with backoff and jitter, fresh auth on every reconnect, subscriptions that come back by themselves, and awareness of when a mobile app goes to the background.
 
@@ -121,7 +121,7 @@ React and React Native support are included as subpath exports. `react` is an op
 ```ts
 import { createSocket } from 'steady-socket';
 
-type Incoming = { type: 'pong' } | { type: 'event'; topic: string; payload: { score: number } };
+type Incoming = { type: 'pong' } | { type: 'event'; topic: string; payload: { time: string } };
 
 type Outgoing =
   | { type: 'ping' }
@@ -156,7 +156,7 @@ const socket = createSocket<Incoming, Outgoing>({
 socket.onState((state) => console.log(state));
 // 'idle' → 'connecting' → 'open' → 'reconnecting' → 'open' … → 'closed'
 
-const stop = socket.subscribe('match:42', (msg) => {
+const stop = socket.subscribe('clock', (msg) => {
   if (msg.type === 'event') console.log(msg.payload);
 });
 
@@ -187,7 +187,7 @@ createSocket({
 
 With the `subscriptions` option, `socket.subscribe(topic, handler)` listens to one topic and returns a function that stops listening.
 
-- **Reference-counted.** Two listeners on `match:42` send one `subscribe` message. `unsubscribe` is sent when the last listener leaves. Calling a returned function twice is harmless.
+- **Reference-counted.** Two listeners on `clock` send one `subscribe` message. `unsubscribe` is sent when the last listener leaves. Calling a returned function twice is harmless.
 - **Replayed on every connection.** The server forgets everything when a connection drops, so the topics are sent again, in the order they were first subscribed, after `onOpen` finishes. A topic that everyone left while the socket was offline is not replayed.
 - **Routed by `topicOf`.** A message reaches the listeners of the topic `topicOf` returns for it. Messages with no topic only reach `onMessage`.
 - **Order on each connection:** `onOpen` messages, then replayed subscriptions, then anything queued with `queueWhileOffline`. All of it is sent before the state becomes `open`, so a state listener can't jump ahead of it.
@@ -203,19 +203,19 @@ type EventMessage = Extract<Incoming, { type: 'event' }>;
 function App() {
   return (
     <SocketProvider socket={socket}>
-      <MatchScore id="42" />
+      <ServerClock />
     </SocketProvider>
   );
 }
 
-function MatchScore({ id }: { id: string }) {
+function ServerClock() {
   const state = useSocketState(); // built on useSyncExternalStore
-  const [score, setScore] = useState<number>();
+  const [time, setTime] = useState<string>();
 
-  useSubscription<EventMessage>(`match:${id}`, (msg) => setScore(msg.payload.score));
+  useSubscription<EventMessage>('clock', (msg) => setTime(msg.payload.time));
 
   if (state !== 'open') return <p>Reconnecting…</p>;
-  return <p>Score: {score}</p>;
+  return <p>Server time: {time}</p>;
 }
 ```
 
