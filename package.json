@@ -1,6 +1,6 @@
 {
   "name": "steady-socket",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A WebSocket client that stays connected, on the web and in React Native.",
   "keywords": [
     "websocket",
