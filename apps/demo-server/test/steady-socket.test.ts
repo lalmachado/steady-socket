@@ -4,7 +4,7 @@ import WebSocket from 'ws';
 import { createSocket, type ConnectionState, type Socket } from 'steady-socket';
 import { AUTH_FAILURE_CODE, startDemoServer, type DemoServer } from '../src/server.js';
 
-type Incoming = { type: 'pong' } | { type: 'event'; topic: string; payload: { score: number } };
+type Incoming = { type: 'pong' } | { type: 'event'; topic: string; payload: { time: string } };
 type Outgoing =
   | { type: 'ping' }
   | { type: 'auth'; token: string }
@@ -36,7 +36,7 @@ const until = async (condition: () => boolean, label: string, ms = 4000) => {
 /** A socket set up the way the README shows, pointed at the demo server. */
 function demoSocket() {
   const states: ConnectionState[] = [];
-  const scores: number[] = [];
+  const times: string[] = [];
   let tokens = 0;
   const s = createSocket<Incoming, Outgoing>({
     // A fresh token on every connect, from the server's own /token endpoint.
@@ -62,25 +62,25 @@ function demoSocket() {
     isAuthFailure: (e) => e.code === AUTH_FAILURE_CODE,
   });
   s.onState((state) => states.push(state));
-  s.subscribe('match:42', (m) => {
-    if (m.type === 'event') scores.push(m.payload.score);
+  s.subscribe('clock', (m) => {
+    if (m.type === 'event') times.push(m.payload.time);
   });
   socket = s;
-  return { s, states, scores, tokensUsed: () => tokens };
+  return { s, states, times, tokensUsed: () => tokens };
 }
 
 describe('steady-socket against the demo server', () => {
   it('connects, subscribes and receives events', async () => {
-    const { s, scores } = demoSocket();
+    const { s, times } = demoSocket();
     s.connect();
-    await until(() => scores.length >= 2, 'two events');
+    await until(() => times.length >= 2, 'two events');
     expect(s.state).toBe('open');
   });
 
   it('replaces a connection that stays open but goes silent, and subscribes again', async () => {
-    const { s, states, scores, tokensUsed } = demoSocket();
+    const { s, states, times, tokensUsed } = demoSocket();
     s.connect();
-    await until(() => scores.length >= 1, 'the first event');
+    await until(() => times.length >= 1, 'the first event');
     const tokensBefore = tokensUsed();
 
     await post('/control/silent');
@@ -88,21 +88,21 @@ describe('steady-socket against the demo server', () => {
     await until(() => states.includes('reconnecting'), 'the heartbeat to give up');
     // The new connection is silent too, so it is replaced again; bring the server back.
     await post('/control/silent?on=false');
-    const seen = scores.length;
-    await until(() => s.state === 'open' && scores.length > seen, 'events after recovery');
+    const seen = times.length;
+    await until(() => s.state === 'open' && times.length > seen, 'events after recovery');
     expect(tokensUsed()).toBeGreaterThan(tokensBefore); // each connection got a fresh token
-    expect(server.state().topics['match:42']).toBe(1); // subscribed again, once
+    expect(server.state().topics['clock']).toBe(1); // subscribed again, once
   });
 
   it('survives a restart: keeps retrying while the server refuses, then recovers', async () => {
-    const { s, states, scores } = demoSocket();
+    const { s, states, times } = demoSocket();
     s.connect();
-    await until(() => scores.length >= 1, 'the first event');
+    await until(() => times.length >= 1, 'the first event');
 
     await post('/control/restart?downMs=300');
     await until(() => states.includes('reconnecting'), 'the drop');
-    const seen = scores.length;
-    await until(() => s.state === 'open' && scores.length > seen, 'recovery after the restart');
+    const seen = times.length;
+    await until(() => s.state === 'open' && times.length > seen, 'recovery after the restart');
     expect(s.closeReason).toBeUndefined();
   });
 

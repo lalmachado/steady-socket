@@ -65,7 +65,7 @@ export function Demo() {
     <SocketProvider socket={socket}>
       <div className="grid">
         <StateCard problem={problem} />
-        <ScoreCard />
+        <ServerClock />
       </div>
       <Controls
         onSignInAgain={() => {
@@ -149,15 +149,16 @@ function StateCard({ problem }: { problem: Problem | undefined }) {
   );
 }
 
-function ScoreCard() {
-  const [score, setScore] = useState<number>();
+/** The server's clock. It freezes when the connection breaks and catches up once it is back. */
+function ServerClock() {
+  const [serverTime, setServerTime] = useState<number>();
   const [updatedAt, setUpdatedAt] = useState<number>();
   const [now, setNow] = useState(() => Date.now());
 
   // The topic is subscribed on mount and again, by the library, after every reconnect.
-  useSubscription<Incoming>('match:42', (message) => {
+  useSubscription<Incoming>('clock', (message) => {
     if (message.type !== 'event') return;
-    setScore(message.payload.score);
+    setServerTime(Date.parse(message.payload.time));
     setUpdatedAt(Date.now());
   });
 
@@ -174,9 +175,9 @@ function ScoreCard() {
     updatedAt === undefined ? undefined : Math.max(0, Math.round((now - updatedAt) / 1000));
   return (
     <section className="card">
-      <h2>Match 42 score</h2>
-      <div className="big" data-testid="score">
-        {score ?? '–'}
+      <h2>Server clock</h2>
+      <div className="big" data-testid="clock" data-time={serverTime}>
+        {serverTime === undefined ? '–' : time(serverTime)}
       </div>
       <div className="muted">
         {age === undefined ? 'waiting for the first event' : `updated ${String(age)} s ago`}
@@ -290,8 +291,8 @@ function ServerCard({ refresh }: { refresh: number }) {
           <dd>{String(server.silent)}</dd>
           <dt>refusing connections</dt>
           <dd>{String(server.down)}</dd>
-          <dt>listeners on match:42</dt>
-          <dd data-testid="server-listeners">{server.topics['match:42'] ?? 0}</dd>
+          <dt>listeners on clock</dt>
+          <dd data-testid="server-listeners">{server.topics['clock'] ?? 0}</dd>
         </dl>
       )}
     </section>

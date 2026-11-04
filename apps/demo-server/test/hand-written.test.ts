@@ -30,7 +30,7 @@ const until = async (condition: () => boolean, label: string, ms = 4000) => {
 };
 
 function handWritten() {
-  const scores: number[] = [];
+  const times: string[] = [];
   let tokens = 0;
   const s = createHandWrittenSocket({
     url: `ws://127.0.0.1:${String(server.port)}`,
@@ -46,44 +46,44 @@ function handWritten() {
     minDelayMs: 20,
     maxDelayMs: 100,
   });
-  s.subscribe('match:42', (m: Message) => {
-    if (m.type === 'event') scores.push((m.payload as { score: number }).score);
+  s.subscribe('clock', (m: Message) => {
+    if (m.type === 'event') times.push((m.payload as { time: string }).time);
   });
   socket = s;
-  return { s, scores, tokensUsed: () => tokens };
+  return { s, times, tokensUsed: () => tokens };
 }
 
 describe('the hand-written socket against the demo server', () => {
   it('connects, subscribes and receives events', async () => {
-    const { s, scores } = handWritten();
+    const { s, times } = handWritten();
     s.connect();
-    await until(() => scores.length >= 2, 'two events');
+    await until(() => times.length >= 2, 'two events');
     expect(s.state).toBe('open');
   });
 
   it('replaces a connection that stays open but goes silent, and subscribes again', async () => {
-    const { s, scores, tokensUsed } = handWritten();
+    const { s, times, tokensUsed } = handWritten();
     s.connect();
-    await until(() => scores.length >= 1, 'the first event');
+    await until(() => times.length >= 1, 'the first event');
     const tokensBefore = tokensUsed();
 
     await post('/control/silent');
     await until(() => tokensUsed() > tokensBefore, 'the heartbeat to give up and reconnect');
     await post('/control/silent?on=false');
-    const seen = scores.length;
-    await until(() => s.state === 'open' && scores.length > seen, 'events after recovery');
-    expect(server.state().topics['match:42']).toBe(1); // subscribed again, once
+    const seen = times.length;
+    await until(() => s.state === 'open' && times.length > seen, 'events after recovery');
+    expect(server.state().topics['clock']).toBe(1); // subscribed again, once
   });
 
   it('survives a restart: keeps retrying while the server refuses, then recovers', async () => {
-    const { s, scores } = handWritten();
+    const { s, times } = handWritten();
     s.connect();
-    await until(() => scores.length >= 1, 'the first event');
+    await until(() => times.length >= 1, 'the first event');
 
     await post('/control/restart?downMs=300');
     await until(() => s.state !== 'open', 'the drop');
-    const seen = scores.length;
-    await until(() => s.state === 'open' && scores.length > seen, 'recovery after the restart');
+    const seen = times.length;
+    await until(() => s.state === 'open' && times.length > seen, 'recovery after the restart');
   });
 
   it('stops for good on an expired token instead of retrying forever', async () => {

@@ -77,7 +77,7 @@ export function App() {
         {socket ? (
           <SocketProvider socket={socket}>
             <Connection colors={colors} />
-            <MatchScore colors={colors} />
+            <ServerClock colors={colors} />
             <Controls
               colors={colors}
               note={note}
@@ -114,17 +114,20 @@ function Connection({ colors }: { colors: Palette }) {
   );
 }
 
-function MatchScore({ colors }: { colors: Palette }) {
-  const [score, setScore] = useState<number>();
+/** The server's clock. It freezes when the connection breaks and catches up once it is back. */
+function ServerClock({ colors }: { colors: Palette }) {
+  const [serverTime, setServerTime] = useState<number>();
 
   // The topic is subscribed on mount and again, by the library, after every reconnect.
-  useSubscription<Incoming>('match:42', (message) => {
-    if (message.type === 'event') setScore(message.payload.score);
+  useSubscription<Incoming>('clock', (message) => {
+    if (message.type === 'event') setServerTime(Date.parse(message.payload.time));
   });
 
   return (
-    <Card colors={colors} title="Match 42 score">
-      <Text style={[styles.big, { color: colors.text }]}>{score ?? '–'}</Text>
+    <Card colors={colors} title="Server clock">
+      <Text style={[styles.big, { color: colors.text }]}>
+        {serverTime === undefined ? '–' : time(serverTime)}
+      </Text>
     </Card>
   );
 }

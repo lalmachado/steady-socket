@@ -16,21 +16,22 @@ pnpm --filter @steady-socket/demo-server start
 
 JSON messages, the same ones the main README's examples use:
 
-| Direction        | Message                                                               |
-| ---------------- | --------------------------------------------------------------------- |
-| client to server | `{ "type": "auth", "token": "…" }`                                    |
-| client to server | `{ "type": "subscribe", "topic": "match:42" }`                        |
-| client to server | `{ "type": "unsubscribe", "topic": "match:42" }`                      |
-| client to server | `{ "type": "ping" }`                                                  |
-| server to client | `{ "type": "pong" }`                                                  |
-| server to client | `{ "type": "event", "topic": "match:42", "payload": { "score": 7 } }` |
+| Direction        | Message                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| client to server | `{ "type": "auth", "token": "…" }`                                                         |
+| client to server | `{ "type": "subscribe", "topic": "clock" }`                                                |
+| client to server | `{ "type": "unsubscribe", "topic": "clock" }`                                              |
+| client to server | `{ "type": "ping" }`                                                                       |
+| server to client | `{ "type": "pong" }`                                                                       |
+| server to client | `{ "type": "event", "topic": "clock", "payload": { "time": "2026-11-04T14:52:03.000Z" } }` |
 
 A connection has to authenticate before it subscribes, either with `?token=` in the URL or with an
 `auth` message. Subscribing first closes the connection with code **4401**, which is what makes the
 order of auth and replay visible. Get a token from `GET /token`. A token is only for connecting: it is valid for 60 seconds, and a
 connection that is already open does not depend on it. The server ends a connection with 4401 after
 30 minutes, as a session that ran out would (`connectionTtlMs`), which also frees the room of tabs
-nobody uses. Every subscribed topic gets an event once a second.
+nobody uses. Every subscribed topic gets an event once a second, carrying the server's time (the
+demos subscribe to the topic `clock`).
 
 ## Sessions
 

@@ -64,7 +64,7 @@ function visitor(n: number): WebSocket | undefined {
     let timer: NodeJS.Timeout | undefined;
     ws.on('open', () => {
       connected++;
-      ws.send(JSON.stringify({ type: 'subscribe', topic: 'match:42' }));
+      ws.send(JSON.stringify({ type: 'subscribe', topic: 'clock' }));
       timer = setInterval(() => {
         pingSentAt = Date.now();
         ws.send(JSON.stringify({ type: 'ping' }));
