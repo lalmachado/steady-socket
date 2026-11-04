@@ -77,7 +77,6 @@ The closest existing libraries are `partysocket` (actively maintained, has React
 - [x] `apps/demo-server`: a tiny `ws` server that can simulate a dead connection, a restart, and an expired token
 - [x] `apps/web` (Next.js App Router): the README's React example against the demo server, with an end-to-end check in a real browser and a GIF
 - [x] `apps/mobile` (Expo): the same, with `appStateLifecycle`
-- [ ] A short GIF of the Expo app reconnecting after airplane mode
 
 **Possible later work:**
 
